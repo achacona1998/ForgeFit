@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "../global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as NavigationBar from "expo-navigation-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FitnessProvider } from "@/context/fitness-context";
 import { ThemeProvider } from "@/lib/theme-provider";
@@ -15,10 +16,27 @@ export default function RootLayout() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (Platform.OS === "web" && navigator.storage && navigator.storage.persist) {
-      navigator.storage.persist().then(persistent => {
-        if (persistent) console.log("Storage will not be cleared except by explicit user action");
-        else console.log("Storage may be cleared by the UA under storage pressure.");
+    // Enable immersive mode on Android
+    if (Platform.OS === "android") {
+      NavigationBar.setPositionAsync("absolute");
+      NavigationBar.setVisibilityAsync("hidden");
+      NavigationBar.setBehaviorAsync("overlay-swipe");
+    }
+
+    if (
+      Platform.OS === "web" &&
+      navigator.storage &&
+      navigator.storage.persist
+    ) {
+      navigator.storage.persist().then((persistent) => {
+        if (persistent)
+          console.log(
+            "Storage will not be cleared except by explicit user action",
+          );
+        else
+          console.log(
+            "Storage may be cleared by the UA under storage pressure.",
+          );
       });
     }
 
@@ -34,7 +52,7 @@ export default function RootLayout() {
         setError(e instanceof Error ? e : new Error(String(e)));
       }
     };
-    
+
     void runMigrations();
   }, []);
 
@@ -58,7 +76,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <FitnessProvider>
-          <StatusBar style="light" />
+          <StatusBar style="light" hidden={true} />
           <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen
