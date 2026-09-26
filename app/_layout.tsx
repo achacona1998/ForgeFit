@@ -18,9 +18,11 @@ export default function RootLayout() {
   useEffect(() => {
     // Enable immersive mode on Android
     if (Platform.OS === "android") {
-      NavigationBar.setPositionAsync("absolute");
-      NavigationBar.setVisibilityAsync("hidden");
-      NavigationBar.setBehaviorAsync("overlay-swipe");
+      Promise.all([
+        NavigationBar.setPositionAsync("absolute"),
+        NavigationBar.setVisibilityAsync("hidden"),
+        NavigationBar.setBehaviorAsync("overlay-swipe")
+      ]).catch(err => console.log("Navigation bar error:", err));
     }
 
     if (
@@ -37,7 +39,7 @@ export default function RootLayout() {
           console.log(
             "Storage may be cleared by the UA under storage pressure.",
           );
-      });
+      }).catch(err => console.log("Storage persist error:", err));
     }
 
     // Run migrations asynchronously to avoid blocking the main thread on web
@@ -49,7 +51,8 @@ export default function RootLayout() {
         setSuccess(true);
       } catch (e) {
         console.error("Migration error:", e);
-        setError(e instanceof Error ? e : new Error(String(e)));
+        const errorMessage = typeof e === 'object' && e !== null ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : String(e);
+        setError(e instanceof Error ? e : new Error(errorMessage));
       }
     };
 
