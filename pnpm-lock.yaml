@@ -25,7 +25,7 @@ importers:
         version: 2.1.1
       drizzle-orm:
         specifier: ^0.44.7
-        version: 0.44.7(expo-sqlite@57.0.3(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(mysql2@3.16.0)
+        version: 0.44.7(expo-sqlite@56.0.6(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(mysql2@3.16.0)
       expo:
         specifier: ~54.0.29
         version: 54.0.37(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.19)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -81,8 +81,8 @@ importers:
         specifier: ~31.0.12
         version: 31.0.12(expo@54.0.37)
       expo-sqlite:
-        specifier: ^57.0.3
-        version: 57.0.3(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: ^56.0.6
+        version: 56.0.6(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-status-bar:
         specifier: ~3.0.9
         version: 3.0.9(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -3455,8 +3455,8 @@ packages:
     peerDependencies:
       expo: '*'
 
-  expo-sqlite@57.0.3:
-    resolution: {integrity: sha512-gbu9Nwm76DNpSK+MEhCjjjF3/EMyFE96IEDSlfO9jPiF4q48a7bef5EXnWVrwW8rvqCZKYAfSGqSpYNhhhpgIg==}
+  expo-sqlite@56.0.6:
+    resolution: {integrity: sha512-HWUWW+Y9MMYcp0iZFRHSeFaGq/bvXEkOsFUjUXI8W5Cjh8V0F2hx56OWjDk0F6MFdB2pKwJ/ckxT16MDBgGscQ==}
     peerDependencies:
       expo: '*'
       react: '*'
@@ -8726,9 +8726,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.7(expo-sqlite@57.0.3(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(mysql2@3.16.0):
+  drizzle-orm@0.44.7(expo-sqlite@56.0.6(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(mysql2@3.16.0):
     optionalDependencies:
-      expo-sqlite: 57.0.3(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo-sqlite: 56.0.6(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       mysql2: 3.16.0
 
   dunder-proto@1.0.1:
@@ -9405,7 +9405,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  expo-sqlite@57.0.3(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  expo-sqlite@56.0.6(expo@54.0.37)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       await-lock: 2.2.2
       expo: 54.0.37(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.19)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
