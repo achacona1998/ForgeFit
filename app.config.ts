@@ -1,54 +1,17 @@
-// Environment variables loaded via EAS Build environment configuration
-import type { ExpoConfig } from "expo/config";
-
-// Bundle ID format: space.manus.<project_name_dots>.<timestamp>
-// e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-// Bundle ID can only contain letters, numbers, and dots
-// Android requires each dot-separated segment to start with a letter
-const rawBundleId = "com.app.pulsofitoffline";
-const bundleId =
-  rawBundleId
-    .replace(/[-_]/g, ".") // Replace hyphens/underscores with dots
-    .replace(/[^a-zA-Z0-9.]/g, "") // Remove invalid chars
-    .replace(/\.+/g, ".") // Collapse consecutive dots
-    .replace(/^\.+|\.+$/g, "") // Trim leading/trailing dots
-    .toLowerCase()
-    .split(".")
-    .map((segment) => {
-      // Android requires each segment to start with a letter
-      // Prefix with 'x' if segment starts with a digit
-      return /^[a-zA-Z]/.test(segment) ? segment : "x" + segment;
-    })
-    .join(".") || "space.manus.app";
-// Extract timestamp from bundle ID and prefix with "manus" for deep link scheme
-// e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
-const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
-
-const env = {
-  // App branding - update these values directly (do not use env vars)
-  appName: "ForgeFit",
-  appSlug: "forgefit",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "",
-  scheme: schemeFromBundleId,
-  iosBundleId: bundleId,
-  androidPackage: bundleId,
-};
+import { ExpoConfig } from "@expo/config-types";
 
 const config: ExpoConfig = {
-  name: env.appName,
-  slug: env.appSlug,
+  name: "ForgeFit",
+  slug: "forgefit",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/logo.png",
-  scheme: env.scheme,
+  scheme: "forgefit",
   userInterfaceStyle: "automatic",
   newArchEnabled: false,
   ios: {
     supportsTablet: true,
-    bundleIdentifier: env.iosBundleId,
+    bundleIdentifier: "com.achadev.forgefit",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -60,7 +23,7 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
-    package: env.androidPackage,
+    package: "com.achadev.forgefit",
     permissions: ["POST_NOTIFICATIONS"],
     intentFilters: [
       {
@@ -68,7 +31,7 @@ const config: ExpoConfig = {
         autoVerify: true,
         data: [
           {
-            scheme: env.scheme,
+            scheme: "forgefit",
             host: "*",
           },
         ],
@@ -101,9 +64,6 @@ const config: ExpoConfig = {
       },
     ],
   ],
-  experiments: {
-    typedRoutes: true,
-  },
 };
 
 export default config;
