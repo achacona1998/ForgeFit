@@ -2,7 +2,6 @@ module.exports = function (api) {
   api.cache(true);
   let plugins = [];
 
-  plugins.push(["inline-import", { extensions: [".sql"] }]);
   plugins.push("react-native-reanimated/plugin");
 
   return {
