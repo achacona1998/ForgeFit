@@ -11,6 +11,18 @@ La implementación actual de ForgeFit cumple aproximadamente el 70% de la especi
 
 ## Capacidades a Agregar
 
+### 0. Diseño Visual y Branding (ALTA PRIORIDAD — Mejora inmediata)
+- Integración del logo ForgeFit (`assets/logo.svg`) en loading, headers, onboarding
+- "Creado por achadev" attribution en settings, loading, footer
+- Gradientes de fondo en dashboard y screens principales
+- Botones con gradientes, sombras y animaciones de press
+- Cards con efecto glass y sombras
+- Jerarquía tipográfica clara
+- Pantalla de loading personalizada con logo y marca
+- Tab bar con branding visual
+- Inputs con diseño refinado y focus states
+- Empty states con iconografía de marca
+
 ### 1. Navegación Completa (9 tabs)
 - Agregar tabs dedicadas: Entrenar, Biblioteca, Medidas, PRs
 - Pantalla de detalle por ejercicio con historial
@@ -50,10 +62,11 @@ La implementación actual de ForgeFit cumple aproximadamente el 70% de la especi
 - Visualización de semanas de doble progresión
 - Flujo de confirmación de deload
 
-## Capacidades Modificadas
+### Capacidades Modificadas
 
 | Módulo | Cambio |
 |--------|--------|
+| Diseño Visual | Logo integrado, gradientes, sombras, tipografía, branding completo |
 | Navegación | De 4 tabs a 9 tabs |
 | Workout | De registro simple a motor completo |
 | Biblioteca | De búsqueda básica a filtros avanzados |
@@ -72,9 +85,11 @@ La implementación actual de ForgeFit cumple aproximadamente el 70% de la especi
 ## Dependencias entre Fases
 
 ```
-Fase 1: Schema/Data Migration (BASE — todos dependen de esto)
+Fase 0: Diseño Visual y Branding (mejora inmediata de UX)
     ↓
-Fase 2: Workout Engine + Rest Timer
+Fase 1: Data Schema Migration (base obligatoria)
+    ↓
+Fase 2: Workout Engine + Rest Timer  
     ↓
 Fase 3: Navegación (nuevos tabs)
     ↓
@@ -82,9 +97,9 @@ Fase 4: Biblioteca expandida
     ↓
 Fase 5: Analytics y Gráficas
     ↓
-Fase 6: Recovery + Progresión config
+Fase 6: Recovery + Progresión
     ↓
-Fase 7: Tests unitarios + integración
+Fase 7: Tests
 ```
 
 ## Criterios de Aceptación (§43 de la especificación)
@@ -103,7 +118,9 @@ Fase 7: Tests unitarios + integración
 
 ## Riesgos
 
-1. **Migración de datos**: Mover sets de arrays anidados a tabla `setLogs` requiere script de migración
-2. **Tamaño de la change**: 6 dominios pueden ser grandes — se recomiendan sub-changes por dominio
-3. **Compatibilidad con New Arch**: Las gráficas y componentes nuevos deben funcionar con `newArchEnabled: false`
-4. **PWA**: No cubierta en este change — requiere `vite-plugin-pwa` o equivalente para Expo
+1. **Diseño visual**: Las mejoras de UI pueden afectar el layout existente — se recomienda cambiar componentes UI primero, luego screens
+2. **Migración de datos**: Mover sets de arrays anidados a tabla `setLogs` requiere script de migración
+3. **Tamaño de la change**: 7 dominios pueden ser grandes — se recomiendan sub-changes por dominio
+4. **Compatibilidad con New Arch**: Las gráficas y componentes nuevos deben funcionar con `newArchEnabled: false`
+5. **SVG en React Native**: El logo SVG puede necesitar `react-native-svg` para renderizado nativo
+6. **PWA**: No cubierta en este change — requiere `vite-plugin-pwa` o equivalente para Expo
