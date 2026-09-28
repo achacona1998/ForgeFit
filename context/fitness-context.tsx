@@ -688,6 +688,14 @@ export function FitnessProvider({ children }: PropsWithChildren) {
       };
       base.settings.firstRunCompleted = true;
 
+      if (profilePatch.weight) {
+        base.measurements.push({
+          id: Math.random().toString(36).substring(2, 9),
+          date: new Date().toISOString(),
+          weight: profilePatch.weight,
+        });
+      }
+
       if (useExample) {
         for (const r of base.routines) await routineRepository.insert(r);
         for (const s of base.sessions) await sessionRepository.insert(s);

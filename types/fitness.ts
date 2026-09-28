@@ -17,6 +17,8 @@ export interface AthleteProfile {
   name: string;
   birthDate?: string;
   height?: number;
+  weight?: number;
+  daysPerWeek?: number;
   goal?: string;
   unit: Unit;
   createdAt: string;

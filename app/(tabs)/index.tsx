@@ -249,6 +249,8 @@ function Onboarding({
       goal?: string;
       unit?: "kg" | "lb";
       height?: number;
+      weight?: number;
+      daysPerWeek?: number;
     },
     useExample: boolean,
   ) => Promise<void>;
@@ -257,6 +259,8 @@ function Onboarding({
   const [goal, setGoal] = useState("Hipertrofia");
   const [unit, setUnit] = useState<"kg" | "lb">("kg");
   const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [daysPerWeek, setDaysPerWeek] = useState(4);
   const [useExample, setUseExample] = useState(true);
   const submit = async () => {
     if (!name.trim()) {
@@ -272,6 +276,8 @@ function Onboarding({
         goal,
         unit,
         height: height ? Number(height) : undefined,
+        weight: weight ? Number(weight) : undefined,
+        daysPerWeek,
       },
       useExample,
     );
@@ -303,6 +309,33 @@ function Onboarding({
           onChangeText={setHeight}
           keyboardType="number-pad"
         />
+        <AppInput
+          label={`Peso actual (${unit}), opcional`}
+          placeholder="70"
+          value={weight}
+          onChangeText={setWeight}
+          keyboardType="numeric"
+        />
+        <Text style={styles.formLabel}>Días de entrenamiento</Text>
+        <View style={styles.choiceRow}>
+          {[3, 4, 5, 6].map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => setDaysPerWeek(item)}
+              style={[
+                styles.choice,
+                daysPerWeek === item && styles.choiceActive,
+              ]}>
+              <Text
+                style={[
+                  styles.choiceText,
+                  daysPerWeek === item && styles.choiceTextActive,
+                ]}>
+                {item} días
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         <Text style={styles.formLabel}>Objetivo principal</Text>
         <View style={styles.choiceRow}>
           {["Hipertrofia", "Fuerza", "Recomposición"].map((item) => (
