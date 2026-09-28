@@ -51,10 +51,15 @@ export const trainingDays = sqliteTable("trainingDays", {
 export const exercises = sqliteTable("exercises", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  aliases: text("aliases", { mode: "json" }), // array of strings
   category: text("category"), // compound, isolation, machine, etc.
-  muscleGroups: text("muscleGroups", { mode: "json" }), // array of strings
+  muscleGroups: text("muscleGroups", { mode: "json" }), // array of strings (legacy)
+  directMuscles: text("directMuscles", { mode: "json" }), // array of strings
+  secondaryMuscles: text("secondaryMuscles", { mode: "json" }), // array of strings
   equipment: text("equipment"),
+  videoUrl: text("videoUrl"),
   instructions: text("instructions"),
+  notes: text("notes"),
   isCustom: integer("isCustom", { mode: "boolean" }).default(false).notNull(),
   createdAt: integer("createdAt", { mode: "timestamp" })
     .$defaultFn(() => new Date())

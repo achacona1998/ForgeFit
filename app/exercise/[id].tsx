@@ -1,26 +1,200 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { AppCard, BarChart, Chip, EmptyState, IconButton, Metric, palette, PrimaryButton, SectionHeader } from "@/components/app/ui";
-import { estimateOneRepMax, getExerciseHistory, potentialPlateau } from "@/features/analytics";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { useFitness } from "@/context/fitness-context";
+import {
+  AppCard,
+  palette,
+  SectionHeader,
+  IconButton,
+} from "@/components/app/ui";
+import { useMemo } from "react";
 
-export default function ExerciseHistoryScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{ id: string }>();
+export default function ExerciseDetailScreen() {
+  const { id } = useLocalSearchParams();
   const { database } = useFitness();
-  const exercise = database.exercises.find((item) => item.id === params.id);
-  const history = getExerciseHistory(database.sessions, params.id);
-  if (!exercise) return <View style={styles.notFound}><EmptyState icon="fitness-center" title="Ejercicio no encontrado" detail="Puede que se haya eliminado de la biblioteca local." /><PrimaryButton label="Volver" icon="arrow-back" variant="ghost" onPress={() => router.back()} /></View>;
-  const sessions = history.slice(0, 6).reverse();
-  const topSets = history.flatMap((entry) => entry.exercise.sets);
-  const bestWeight = Math.max(0, ...topSets.map((set) => set.weight));
-  const bestReps = Math.max(0, ...topSets.map((set) => set.reps));
-  const bestE1rm = Math.max(0, ...topSets.map((set) => estimateOneRepMax(set.weight, set.reps)));
-  const isStalled = potentialPlateau(database.sessions, params.id);
-  return <View style={styles.screen}><View style={styles.header}><IconButton icon="arrow-back" label="Volver" onPress={() => router.back()} /><Text style={styles.headerTitle}>Historial de ejercicio</Text><View style={styles.spacer} /></View><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View><Chip label={exercise.muscleGroups.join(" · ").toUpperCase()} tone="blue" /><Text style={styles.title}>{exercise.name}</Text><Text style={styles.subtitle}>{exercise.equipment} · {exercise.category}</Text></View><AppCard><SectionHeader title="Tendencia de carga" /><BarChart values={sessions.map((entry) => Math.max(...entry.exercise.sets.map((set) => set.weight)))} labels={sessions.map((entry) => new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" }).format(new Date(entry.session.scheduledDate)))} /></AppCard><View style={styles.metrics}><AppCard style={styles.metricCard}><Metric label="Mejor carga" value={`${bestWeight}`} detail="kg" /></AppCard><AppCard style={styles.metricCard}><Metric label="Mejores reps" value={String(bestReps)} detail="en una serie" tone="blue" /></AppCard><AppCard style={styles.metricCard}><Metric label="e1RM" value={`${bestE1rm}`} detail="estimado" tone="white" /></AppCard></View>{isStalled ? <AppCard style={styles.plateau}><MaterialIcons name="trending-flat" size={20} color={palette.warning} /><View style={styles.plateauText}><Text style={styles.plateauTitle}>Posible estancamiento</Text><Text style={styles.plateauCopy}>Las últimas cuatro sesiones tienen el mismo resultado superior. Revisa recuperación, RIR, descanso o volumen.</Text></View></AppCard> : null}<SectionHeader title="Sesiones registradas" />{history.length ? history.map(({ session, exercise: entry }) => <AppCard key={`${session.id}-${entry.id}`} style={styles.historyCard}><View style={styles.historyTop}><Text style={styles.historyDate}>{new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long" }).format(new Date(session.scheduledDate))}</Text><Chip label={session.trainingDayName} /></View><View style={styles.setRows}>{entry.sets.map((set) => <View key={set.id} style={styles.setRow}><Text style={styles.setNumber}>SERIE {set.order}</Text><Text style={styles.setValue}>{set.weight} kg × {set.reps}</Text><Text style={styles.setRir}>{set.rir !== undefined ? `RIR ${set.rir}` : ""}</Text></View>)}</View></AppCard>) : <AppCard><EmptyState icon="history" title="Aún no hay historial" detail="Completa este ejercicio en una sesión para empezar a comparar resultados." /></AppCard>}</ScrollView></View>;
+  const router = useRouter();
+
+  const exercise = useMemo(() => {
+    return database.exercises.find((e) => e.id === id);
+  }, [database.exercises, id]);
+
+  const history = useMemo(() => {
+    // Find all session exercises that match this exercise ID, and have completed sets
+    const sessions = database.sessions.filter((s) => s.status === "completed");
+    const result = [];
+
+    for (const session of sessions) {
+      for (const ex of session.exercises) {
+        if (ex.exerciseId === id) {
+          result.push({
+            date: session.completedAt || session.scheduledDate,
+            sessionName: session.trainingDayName,
+            sets: ex.sets.filter((s) => s.completedAt && !s.skipped),
+          });
+        }
+      }
+    }
+
+    // Sort descending by date
+    return result.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+  }, [database.sessions, id]);
+
+  if (!exercise) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}>
+        <Text style={styles.title}>Ejercicio no encontrado</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 16,
+        }}>
+        <IconButton icon="arrow-back" onPress={() => router.back()} />
+        <Text
+          style={[styles.title, { marginLeft: 12, flex: 1 }]}
+          numberOfLines={2}>
+          {exercise.name}
+        </Text>
+      </View>
+
+      <AppCard style={{ marginBottom: 24 }}>
+        <Text
+          style={{
+            color: palette.muted,
+            fontSize: 12,
+            fontWeight: "bold",
+            marginBottom: 4,
+          }}>
+          MÚSCULOS PRINCIPALES
+        </Text>
+        <Text style={{ color: palette.text, fontSize: 16, marginBottom: 12 }}>
+          {exercise.directMuscles?.join(", ") ||
+            exercise.muscleGroups?.join(", ") ||
+            "No especificado"}
+        </Text>
+
+        {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+          <>
+            <Text
+              style={{
+                color: palette.muted,
+                fontSize: 12,
+                fontWeight: "bold",
+                marginBottom: 4,
+              }}>
+              MÚSCULOS SECUNDARIOS
+            </Text>
+            <Text
+              style={{ color: palette.text, fontSize: 16, marginBottom: 12 }}>
+              {exercise.secondaryMuscles.join(", ")}
+            </Text>
+          </>
+        )}
+
+        <Text
+          style={{
+            color: palette.muted,
+            fontSize: 12,
+            fontWeight: "bold",
+            marginBottom: 4,
+          }}>
+          EQUIPAMIENTO
+        </Text>
+        <Text style={{ color: palette.text, fontSize: 16, marginBottom: 12 }}>
+          {exercise.equipment || "No especificado"}
+        </Text>
+
+        {exercise.aliases && exercise.aliases.length > 0 && (
+          <>
+            <Text
+              style={{
+                color: palette.muted,
+                fontSize: 12,
+                fontWeight: "bold",
+                marginBottom: 4,
+              }}>
+              OTROS NOMBRES
+            </Text>
+            <Text
+              style={{ color: palette.text, fontSize: 14, marginBottom: 12 }}>
+              {exercise.aliases.join(", ")}
+            </Text>
+          </>
+        )}
+      </AppCard>
+
+      <SectionHeader title="Historial de Entrenamiento" />
+
+      {history.length === 0 ? (
+        <Text
+          style={{ color: palette.muted, textAlign: "center", marginTop: 24 }}>
+          Aún no has registrado este ejercicio en un entrenamiento.
+        </Text>
+      ) : (
+        <View style={{ gap: 12 }}>
+          {history.map((entry, idx) => (
+            <AppCard key={idx}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}>
+                <Text style={{ color: palette.lime, fontWeight: "bold" }}>
+                  {new Date(entry.date).toLocaleDateString()}
+                </Text>
+                <Text style={{ color: palette.muted, fontSize: 12 }}>
+                  {entry.sessionName}
+                </Text>
+              </View>
+
+              {entry.sets.map((set, sIdx) => (
+                <View
+                  key={sIdx}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    paddingVertical: 4,
+                    borderBottomWidth: sIdx < entry.sets.length - 1 ? 1 : 0,
+                    borderBottomColor: palette.border,
+                  }}>
+                  <Text style={{ color: palette.text }}>Serie {set.order}</Text>
+                  <Text style={{ color: palette.text, fontWeight: "bold" }}>
+                    {set.weight} kg × {set.reps} reps
+                  </Text>
+                </View>
+              ))}
+            </AppCard>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg }, notFound: { flex: 1, backgroundColor: palette.bg, justifyContent: "center", padding: 20, gap: 14 }, header: { height: 70, paddingHorizontal: 18, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderColor: palette.border }, headerTitle: { color: palette.text, fontSize: 15, fontWeight: "900" }, spacer: { width: 40 }, content: { padding: 18, paddingBottom: 34, gap: 13 }, title: { color: palette.text, fontSize: 28, fontWeight: "900", letterSpacing: -0.8, marginTop: 12 }, subtitle: { color: palette.muted, fontSize: 13, marginTop: 3 }, metrics: { flexDirection: "row", gap: 8 }, metricCard: { flex: 1, padding: 12 }, plateau: { flexDirection: "row", gap: 11, backgroundColor: "#2B2615", borderColor: "#5E4C1A" }, plateauText: { flex: 1 }, plateauTitle: { color: palette.warning, fontSize: 14, fontWeight: "900" }, plateauCopy: { color: "#D7CA9B", fontSize: 12, lineHeight: 17, marginTop: 3 }, historyCard: { gap: 12 }, historyTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, historyDate: { color: palette.text, fontSize: 14, fontWeight: "900", textTransform: "capitalize" }, setRows: { gap: 6 }, setRow: { flexDirection: "row", alignItems: "center", backgroundColor: palette.surfaceAlt, padding: 10, borderRadius: 11 }, setNumber: { width: 56, color: palette.muted, fontWeight: "900", fontSize: 9 }, setValue: { flex: 1, color: palette.text, fontWeight: "800", fontSize: 13 }, setRir: { color: palette.lime, fontSize: 11, fontWeight: "800" },
+  container: {
+    flex: 1,
+    backgroundColor: palette.bg,
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: palette.text,
+  },
 });

@@ -1,9 +1,6 @@
 export type Unit = "kg" | "lb";
 export type SessionStatus =
-  | "scheduled"
-  | "in_progress"
-  | "completed"
-  | "skipped";
+  "scheduled" | "in_progress" | "completed" | "skipped";
 export type RecordType = "weight" | "estimated_1rm" | "volume";
 export type ProgressionType =
   | "DOUBLE_PROGRESSION"
@@ -28,9 +25,13 @@ export interface AthleteProfile {
 export interface Exercise {
   id: string;
   name: string;
+  aliases?: string[];
   muscleGroups: string[];
+  directMuscles?: string[];
+  secondaryMuscles?: string[];
   equipment: string;
   category: string;
+  videoUrl?: string;
   instructions?: string;
   notes?: string;
   isCustom: boolean;
