@@ -17,7 +17,7 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#133875",
+      backgroundColor: "#0A0F14", // Changed from #133875 to dark background to match the icon's natural background and app theme
       foregroundImage: "./assets/images/padded-icon.png",
     },
     predictiveBackGestureEnabled: false,
