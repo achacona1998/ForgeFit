@@ -99,6 +99,7 @@ export interface WorkoutSet {
   type?: "warmup" | "working" | "dropset" | "failure";
   quality?: SetQuality;
   actualRestSeconds?: number;
+  skipped?: boolean;
 }
 export interface PreviousPerformance {
   weight: number;

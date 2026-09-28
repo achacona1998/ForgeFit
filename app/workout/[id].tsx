@@ -53,11 +53,12 @@ export default function WorkoutScreen() {
   const [notes, setNotes] = useState(session?.notes ?? "");
   const [restEndTime, setRestEndTime] = useState<number | null>(null);
   const [restRemaining, setRestRemaining] = useState(0);
+  const [restPaused, setRestPaused] = useState(false);
   const [calcWeight, setCalcWeight] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!restEndTime) {
-      setRestRemaining(0);
+    if (!restEndTime || restPaused) {
+      if (!restEndTime) setRestRemaining(0);
       return;
     }
 
@@ -78,7 +79,7 @@ export default function WorkoutScreen() {
     updateTimer(); // Initial check
     const interval = setInterval(updateTimer, 500);
     return () => clearInterval(interval);
-  }, [restEndTime]);
+  }, [restEndTime, restPaused]);
 
   useEffect(() => {
     if (restRemaining !== 0 || !shouldAdvance || !session) return;
@@ -133,7 +134,7 @@ export default function WorkoutScreen() {
       </View>
     );
 
-  const completeSet = async (setId: string) => {
+  const completeSet = async (setId: string, skipped = false) => {
     const set = activeExercise.sets.find((item) => item.id === setId);
     if (!set) return;
 
@@ -143,9 +144,27 @@ export default function WorkoutScreen() {
     const completed = !set.completedAt;
     await updateWorkoutSet(session.id, activeExercise.id, setId, {
       completedAt: completed ? new Date().toISOString() : undefined,
+      skipped: completed ? skipped : undefined,
     });
     if (completed) {
-      setRestEndTime(Date.now() + set.restSeconds * 1000);
+      if (activeExercise.target.protocol === "SUPERSET" && pairedExercise) {
+        // If it's a superset and the paired exercise has an incomplete set at the same index,
+        // we skip the rest and move to the paired exercise.
+        const pairedSet = pairedExercise.sets[set.order - 1];
+        if (pairedSet && !pairedSet.completedAt) {
+          setRestEndTime(null);
+          setExerciseIndex(
+            session.exercises.findIndex((e) => e.id === pairedExercise.id),
+          );
+          return;
+        }
+      }
+      const restDuration =
+        activeExercise.target.protocol === "FST7"
+          ? (activeExercise.target.fst7RestSeconds ?? 45)
+          : set.restSeconds;
+      setRestEndTime(Date.now() + restDuration * 1000);
+      setRestPaused(false);
       if (
         activeExercise.sets.every((item) =>
           item.id === set.id ? true : Boolean(item.completedAt),
@@ -154,6 +173,7 @@ export default function WorkoutScreen() {
         setShouldAdvance(true);
     } else {
       setRestEndTime(null);
+      setRestPaused(false);
     }
   };
 
@@ -206,8 +226,26 @@ export default function WorkoutScreen() {
       {restRemaining > 0 ? (
         <RestPanel
           seconds={restRemaining}
-          onSkip={() => setRestEndTime(null)}
-          onAdd={() => setRestEndTime((value) => (value || Date.now()) + 30000)}
+          isPaused={restPaused}
+          onSkip={() => {
+            setRestEndTime(null);
+            setRestPaused(false);
+          }}
+          onAdd={(secs) => {
+            if (restPaused) {
+              setRestRemaining((r) => r + secs);
+            } else {
+              setRestEndTime((value) => (value || Date.now()) + secs * 1000);
+            }
+          }}
+          onTogglePause={() => {
+            if (restPaused) {
+              setRestEndTime(Date.now() + restRemaining * 1000);
+              setRestPaused(false);
+            } else {
+              setRestPaused(true);
+            }
+          }}
         />
       ) : null}
 
@@ -216,10 +254,17 @@ export default function WorkoutScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={styles.exerciseLabelRow}>
           <View style={styles.exerciseBadges}>
-            <Chip
-              label={`EJERCICIO ${exerciseIndex + 1} DE ${session.exercises.length}`}
-              tone="lime"
-            />
+            {activeExercise.target.protocol === "FST7" ? (
+              <Chip
+                label={`SERIE ${Math.min(7, activeExercise.sets.filter((s) => s.completedAt).length + 1)}/7`}
+                tone="lime"
+              />
+            ) : (
+              <Chip
+                label={`EJERCICIO ${exerciseIndex + 1} DE ${session.exercises.length}`}
+                tone="lime"
+              />
+            )}
             {activeExercise.target.supersetGroup ? (
               <Chip
                 label={`BISERIE ${activeExercise.target.supersetGroup.replace("pair-", "")}`}
@@ -332,10 +377,12 @@ export default function WorkoutScreen() {
               key={set.id}
               index={set.order}
               completed={Boolean(set.completedAt)}
+              skipped={set.skipped}
               type={set.type}
               weight={set.weight}
               reps={set.reps}
               rir={set.rir}
+              quality={set.quality}
               showRir={database.settings.showRir}
               onType={(type) =>
                 void updateWorkoutSet(session.id, activeExercise.id, set.id, {
@@ -358,6 +405,12 @@ export default function WorkoutScreen() {
                 })
               }
               onComplete={() => void completeSet(set.id)}
+              onSkip={() => void completeSet(set.id, true)}
+              onQuality={(quality) =>
+                void updateWorkoutSet(session.id, activeExercise.id, set.id, {
+                  quality,
+                })
+              }
             />
           ))}
         </View>
@@ -458,24 +511,44 @@ export default function WorkoutScreen() {
 
 function RestPanel({
   seconds,
+  isPaused,
   onSkip,
   onAdd,
+  onTogglePause,
 }: {
   seconds: number;
+  isPaused: boolean;
   onSkip: () => void;
-  onAdd: () => void;
+  onAdd: (secs: number) => void;
+  onTogglePause: () => void;
 }) {
   return (
     <View style={styles.restPanel}>
       <View>
-        <Text style={styles.restLabel}>DESCANSO EN CURSO</Text>
+        <Text style={styles.restLabel}>
+          {isPaused ? "DESCANSO PAUSADO" : "DESCANSO EN CURSO"}
+        </Text>
         <Text style={styles.restClock}>{clock(seconds)}</Text>
       </View>
       <View style={styles.restActions}>
         <Pressable
-          onPress={onAdd}
+          onPress={() => onAdd(15)}
           style={({ pressed }) => [styles.restMini, pressed && styles.pressed]}>
-          <Text style={styles.restMiniText}>+30 s</Text>
+          <Text style={styles.restMiniText}>+15s</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onAdd(30)}
+          style={({ pressed }) => [styles.restMini, pressed && styles.pressed]}>
+          <Text style={styles.restMiniText}>+30s</Text>
+        </Pressable>
+        <Pressable
+          onPress={onTogglePause}
+          style={({ pressed }) => [styles.restSkip, pressed && styles.pressed]}>
+          <MaterialIcons
+            name={isPaused ? "play-arrow" : "pause"}
+            size={20}
+            color={palette.bg}
+          />
         </Pressable>
         <Pressable
           onPress={onSkip}
@@ -490,29 +563,37 @@ function RestPanel({
 function SetRow({
   index,
   completed,
+  skipped,
   type,
   weight,
   reps,
   rir,
+  quality,
   showRir,
   onType,
   onWeight,
   onReps,
   onRir,
   onComplete,
+  onQuality,
+  onSkip,
 }: {
   index: number;
   completed: boolean;
+  skipped?: boolean;
   type?: "warmup" | "working" | "dropset" | "failure";
   weight: number;
   reps: number;
   rir?: number;
+  quality?: "excellent" | "acceptable" | "poor";
   showRir: boolean;
   onType: (value: "warmup" | "working" | "dropset" | "failure") => void;
   onWeight: (value: number) => void;
   onReps: (value: number) => void;
   onRir: (value: number) => void;
   onComplete: () => void;
+  onQuality: (value: "excellent" | "acceptable" | "poor") => void;
+  onSkip: () => void;
 }) {
   const getLabel = () => {
     if (type === "warmup") return "W";
@@ -528,44 +609,117 @@ function SetRow({
     else onType("warmup");
   };
 
+  const toggleQuality = () => {
+    if (quality === "excellent") onQuality("acceptable");
+    else if (quality === "acceptable") onQuality("poor");
+    else onQuality("excellent");
+  };
+
+  const qualityColor =
+    quality === "excellent"
+      ? palette.lime
+      : quality === "acceptable"
+        ? palette.warning
+        : quality === "poor"
+          ? "#ff4444"
+          : palette.muted;
+
+  const qualityLabel =
+    quality === "excellent"
+      ? "Excelente"
+      : quality === "acceptable"
+        ? "Aceptable"
+        : quality === "poor"
+          ? "Pobre"
+          : "Calificar técnica";
+
   return (
-    <View style={[styles.setRow, completed && styles.setRowDone]}>
-      <Pressable onPress={toggleType} style={styles.setCol}>
-        <Text
-          style={[
-            styles.setNumber,
-            completed && styles.setNumberDone,
-            type === "warmup" && { color: palette.warning },
-            type === "dropset" && { color: palette.blue },
-            type === "failure" && { color: "#ff4444" },
-          ]}>
-          {getLabel()}
-        </Text>
-      </Pressable>
-      <View style={styles.weightCol}>
-        <NumberStep value={weight} onChange={onWeight} step={2.5} min={0} />
-      </View>
-      <View style={styles.repsCol}>
-        <NumberStep value={reps} onChange={onReps} min={1} />
-      </View>
-      {showRir ? (
-        <View style={styles.rirCol}>
-          <NumberStep value={rir ?? 2} onChange={onRir} min={0} />
-        </View>
-      ) : null}
-      <Pressable
-        onPress={onComplete}
-        style={({ pressed }) => [
-          styles.completeButton,
-          completed && styles.completeButtonDone,
-          pressed && styles.pressed,
+    <View style={{ gap: 4 }}>
+      <View
+        style={[
+          styles.setRow,
+          completed && styles.setRowDone,
+          skipped && { opacity: 0.5 },
         ]}>
-        <MaterialIcons
-          name={completed ? "check" : "circle"}
-          size={20}
-          color={completed ? palette.bg : palette.muted}
-        />
-      </Pressable>
+        <Pressable onPress={toggleType} style={styles.setCol}>
+          <Text
+            style={[
+              styles.setNumber,
+              completed && styles.setNumberDone,
+              type === "warmup" && { color: palette.warning },
+              type === "dropset" && { color: palette.blue },
+              type === "failure" && { color: "#ff4444" },
+            ]}>
+            {getLabel()}
+          </Text>
+        </Pressable>
+        <View style={styles.weightCol}>
+          <NumberStep value={weight} onChange={onWeight} step={2.5} min={0} />
+        </View>
+        <View style={styles.repsCol}>
+          <NumberStep value={reps} onChange={onReps} min={1} />
+        </View>
+        {showRir ? (
+          <View style={styles.rirCol}>
+            <NumberStep value={rir ?? 2} onChange={onRir} min={0} />
+          </View>
+        ) : null}
+        <Pressable
+          onPress={onComplete}
+          style={({ pressed }) => [
+            styles.completeButton,
+            completed && !skipped && styles.completeButtonDone,
+            skipped && {
+              backgroundColor: palette.surfaceAlt,
+              borderColor: palette.muted,
+            },
+            pressed && styles.pressed,
+          ]}>
+          <MaterialIcons
+            name={skipped ? "block" : completed ? "check" : "circle"}
+            size={20}
+            color={
+              skipped ? palette.muted : completed ? palette.bg : palette.muted
+            }
+          />
+        </Pressable>
+      </View>
+      {completed && !skipped && (
+        <View style={{ flexDirection: "row", gap: 8, paddingLeft: 34 }}>
+          <Pressable
+            onPress={toggleQuality}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingVertical: 4,
+              paddingHorizontal: 8,
+              backgroundColor: palette.surfaceAlt,
+              borderRadius: 8,
+            }}>
+            <MaterialIcons name="thumb-up" size={12} color={qualityColor} />
+            <Text
+              style={{ color: qualityColor, fontSize: 11, fontWeight: "800" }}>
+              {qualityLabel}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+      {!completed && (
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            paddingRight: 4,
+          }}>
+          <Pressable onPress={onSkip} style={{ padding: 4 }}>
+            <Text
+              style={{ color: palette.muted, fontSize: 10, fontWeight: "800" }}>
+              Omitir serie
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }

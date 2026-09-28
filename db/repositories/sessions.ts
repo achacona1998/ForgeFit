@@ -47,7 +47,11 @@ export const sessionRepository = {
               reps: set.actualReps ?? 0,
               rir: set.actualRIR ?? undefined,
               rpe: set.actualRPE ?? undefined,
+              quality:
+                (set.techniqueRating as "excellent" | "acceptable" | "poor") ??
+                undefined,
               completedAt: set.completedAt ?? undefined,
+              skipped: set.skipped ?? false,
               restSeconds: set.restActualSeconds ?? 0,
             })),
           };
@@ -105,9 +109,10 @@ export const sessionRepository = {
             actualReps: s.reps,
             actualRIR: s.rir,
             actualRPE: s.rpe,
+            techniqueRating: s.quality ?? null,
             restActualSeconds: s.restSeconds,
             completedAt: s.completedAt ?? null,
-            skipped: false,
+            skipped: s.skipped ?? false,
           })),
         );
       }
