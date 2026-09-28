@@ -14,32 +14,33 @@ import type {
 
 export const routineRepository = {
   async getAll(): Promise<Routine[]> {
-    // Note: Due to SQLite not having deep nested JSON natively easily queryable in Drizzle
-    // without raw SQL, we do a multi-query fetch. This is fast locally.
-    const allRoutines = await db.select().from(routines);
-    const allVersions = await db.select().from(routineVersions);
-    const allDays = await db.select().from(trainingDays);
-    const allTemplates = await db.select().from(exerciseTemplates);
+    const result = await db.query.routines.findMany({
+      with: {
+        versions: {
+          with: {
+            trainingDays: {
+              with: {
+                exerciseTemplates: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    return allRoutines.map((r: any) => {
+    return result.map((r) => {
       // Find the active/current version (we'll just take the latest one for simplicity or match by ID)
-      const version = allVersions.find((v: any) => v.routineId === r.id);
+      const version = r.versions.find((v) => v.id === r.currentVersionId) ?? r.versions[r.versions.length - 1];
 
-      const days = version
-        ? allDays.filter((d: any) => d.routineVersionId === version.id)
-        : [];
+      const days = version?.trainingDays ?? [];
 
-      const mappedDays: TrainingDay[] = days.map((d: any) => {
-        const templates = allTemplates.filter(
-          (t: any) => t.trainingDayId === d.id,
-        );
-
+      const mappedDays: TrainingDay[] = days.map((d) => {
         return {
           id: d.id,
           weekday: d.dayOfWeek ?? 1,
           name: d.name,
           order: d.order,
-          exercises: templates.map((t: any) => ({
+          exercises: d.exerciseTemplates.map((t) => ({
             id: t.id,
             exerciseId: t.exerciseId,
             name: "Unknown", // Will be resolved by UI

@@ -6,7 +6,7 @@ import type { Exercise } from "../../types/fitness";
 export const exerciseRepository = {
   async getAll(): Promise<Exercise[]> {
     const records = await db.select().from(exercises);
-    return records.map((r: any) => ({
+    return records.map((r) => ({
       id: r.id,
       name: r.name,
       category: r.category ?? "",

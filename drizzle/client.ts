@@ -44,8 +44,9 @@ export function getDb() {
 }
 
 // Export a dummy/proxy for the static exports that expect 'db' to be immediately available.
-export const db = new Proxy({} as any, {
+type DbType = ReturnType<typeof drizzle<typeof schema>>;
+export const db = new Proxy({} as DbType, {
   get: (target, prop) => {
-    return getDb()[prop as keyof typeof _drizzleDb];
+    return getDb()[prop as keyof DbType];
   },
-});
+}) as DbType;

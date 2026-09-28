@@ -17,7 +17,7 @@ function TabIcon({
     <MaterialIcons
       name={name}
       size={22}
-      color={focused ? palette.lime : color}
+      color={focused ? palette.lime : (color as string)}
     />
   );
 }
@@ -44,7 +44,13 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Inicio",
-          tabBarIcon: (props) => <TabIcon name="home-filled" {...props} />,
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="home-filled"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
         }}
       />
       <Tabs.Screen
@@ -52,7 +58,11 @@ export default function TabLayout() {
         options={{
           title: "Rutina",
           tabBarIcon: (props) => (
-            <TabIcon name="format-list-bulleted" {...props} />
+            <TabIcon
+              name="format-list-bulleted"
+              focused={props.focused}
+              color={props.color as string}
+            />
           ),
         }}
       />
@@ -60,14 +70,26 @@ export default function TabLayout() {
         name="progress"
         options={{
           title: "Progreso",
-          tabBarIcon: (props) => <TabIcon name="insights" {...props} />,
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="insights"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: "Más",
-          tabBarIcon: (props) => <TabIcon name="grid-view" {...props} />,
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="grid-view"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
         }}
       />
     </Tabs>

@@ -5,15 +5,17 @@ import type { WorkoutSession, WorkoutSet } from "../../types/fitness";
 
 export const sessionRepository = {
   async getAll(): Promise<WorkoutSession[]> {
-    const allSessions = await db.select().from(sessions);
-    const allExercises = await db.select().from(sessionExercises);
-    const allSets = await db.select().from(setLogs);
+    const allSessions = await db.query.sessions.findMany({
+      with: {
+        sessionExercises: {
+          with: {
+            setLogs: true,
+          },
+        },
+      },
+    });
 
-    return allSessions.map((s: any) => {
-      const exercisesForSession = allExercises.filter(
-        (e: any) => e.sessionId === s.id,
-      );
-
+    return allSessions.map((s) => {
       return {
         id: s.id,
         routineId: s.routineId ?? "",
@@ -27,10 +29,7 @@ export const sessionRepository = {
           (s.status as "scheduled" | "in_progress" | "completed" | "skipped") ||
           "scheduled",
         notes: s.sessionNotes ?? undefined,
-        exercises: exercisesForSession.map((e: any) => {
-          const setsForExercise = allSets.filter(
-            (set: any) => set.sessionExerciseId === e.id,
-          );
+        exercises: s.sessionExercises.map((e) => {
           return {
             id: e.id,
             exerciseId: e.exerciseId,
@@ -38,7 +37,7 @@ export const sessionRepository = {
             target: { sets: 0, repRangeMin: 1, repRangeMax: 1, restSeconds: 0 },
             templateId: "", // Optional, ignored for now
             order: e.order,
-            sets: setsForExercise.map((set: any) => ({
+            sets: e.setLogs.map((set) => ({
               id: set.id,
               order: set.setNumber,
               type:

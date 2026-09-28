@@ -176,3 +176,77 @@ export const settings = sqliteTable("settings", {
     .$defaultFn(() => new Date())
     .notNull(),
 });
+
+import { relations } from "drizzle-orm";
+
+export const routinesRelations = relations(routines, ({ many }) => ({
+  versions: many(routineVersions),
+}));
+
+export const routineVersionsRelations = relations(
+  routineVersions,
+  ({ one, many }) => ({
+    routine: one(routines, {
+      fields: [routineVersions.routineId],
+      references: [routines.id],
+    }),
+    trainingDays: many(trainingDays),
+  }),
+);
+
+export const trainingDaysRelations = relations(
+  trainingDays,
+  ({ one, many }) => ({
+    version: one(routineVersions, {
+      fields: [trainingDays.routineVersionId],
+      references: [routineVersions.id],
+    }),
+    exerciseTemplates: many(exerciseTemplates),
+  }),
+);
+
+export const exerciseTemplatesRelations = relations(
+  exerciseTemplates,
+  ({ one }) => ({
+    trainingDay: one(trainingDays, {
+      fields: [exerciseTemplates.trainingDayId],
+      references: [trainingDays.id],
+    }),
+    exercise: one(exercises, {
+      fields: [exerciseTemplates.exerciseId],
+      references: [exercises.id],
+    }),
+  }),
+);
+
+export const exercisesRelations = relations(exercises, ({ many }) => ({
+  templates: many(exerciseTemplates),
+  sessionExercises: many(sessionExercises),
+  personalRecords: many(personalRecords),
+}));
+
+export const sessionsRelations = relations(sessions, ({ many }) => ({
+  sessionExercises: many(sessionExercises),
+}));
+
+export const sessionExercisesRelations = relations(
+  sessionExercises,
+  ({ one, many }) => ({
+    session: one(sessions, {
+      fields: [sessionExercises.sessionId],
+      references: [sessions.id],
+    }),
+    exercise: one(exercises, {
+      fields: [sessionExercises.exerciseId],
+      references: [exercises.id],
+    }),
+    setLogs: many(setLogs),
+  }),
+);
+
+export const setLogsRelations = relations(setLogs, ({ one }) => ({
+  sessionExercise: one(sessionExercises, {
+    fields: [setLogs.sessionExerciseId],
+    references: [sessionExercises.id],
+  }),
+}));
