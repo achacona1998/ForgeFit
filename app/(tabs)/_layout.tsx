@@ -54,12 +54,38 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="train"
+        options={{
+          title: "Entrenar",
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="fitness-center"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="routine"
         options={{
           title: "Rutina",
           tabBarIcon: (props) => (
             <TabIcon
               name="format-list-bulleted"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="library"
+        options={{
+          title: "Biblioteca",
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="library-books"
               focused={props.focused}
               color={props.color as string}
             />
@@ -80,12 +106,51 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="more"
+        name="measurements"
         options={{
-          title: "Más",
+          title: "Medidas",
           tabBarIcon: (props) => (
             <TabIcon
-              name="grid-view"
+              name="straighten"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="prs"
+        options={{
+          title: "PRs",
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="emoji-events"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: "Calendario",
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="calendar-month"
+              focused={props.focused}
+              color={props.color as string}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Ajustes",
+          tabBarIcon: (props) => (
+            <TabIcon
+              name="settings"
               focused={props.focused}
               color={props.color as string}
             />
