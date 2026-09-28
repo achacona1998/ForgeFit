@@ -137,8 +137,11 @@ export function FitnessProvider({ children }: PropsWithChildren) {
 
   // Carga inicial desde SQLite relacional
   useEffect(() => {
+    let mounted = true;
+
     const loadFromSQLite = async () => {
       try {
+        // Ensure DB is ready (initializeDbAsync should have run in _layout.tsx)
         const settingsRecord = await db
           .select()
           .from(settings)
@@ -179,14 +182,17 @@ export function FitnessProvider({ children }: PropsWithChildren) {
           dbState.exercises = exerciseLibrary;
         }
 
-        setDatabase(dbState);
+        if (mounted) setDatabase(dbState);
       } catch (error) {
         console.warn("No se pudo recuperar la base local SQLite", error);
+        if (mounted) setDatabase(createEmptyDatabase());
       } finally {
-        setHydrated(true);
+        if (mounted) setHydrated(true);
       }
     };
     void loadFromSQLite();
+
+    return () => { mounted = false; };
   }, []);
 
   const commit = useCallback(async (next: FitnessDatabase) => {

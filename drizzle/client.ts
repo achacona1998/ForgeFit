@@ -9,21 +9,31 @@ import { Platform } from "react-native";
 
 let _sqliteDb: ReturnType<typeof openDatabaseSync> | null = null;
 let _drizzleDb: ReturnType<typeof drizzle> | null = null;
+let _initPromise: Promise<ReturnType<typeof drizzle>> | null = null;
 
 export async function initializeDbAsync() {
-  if (!_sqliteDb) {
-    // We MUST use openDatabaseAsync on Web to prevent blocking the UI thread
-    const sqliteAsync = await openDatabaseAsync("forgefit", {
-      enableChangeListener: true,
-      useNewConnection: true, // Forces IndexedDB reconnection if previous page didn't close it cleanly
-    });
+  if (_drizzleDb) return _drizzleDb;
+  if (_initPromise) return _initPromise;
 
-    // expo-sqlite typing requires a synchronous db object for drizzle, but on web
-    // openDatabaseAsync returns a WebSQLiteDatabase that implements the same interface.
-    _sqliteDb = sqliteAsync as unknown as ReturnType<typeof openDatabaseSync>;
+  _initPromise = (async () => {
+    if (Platform.OS === "web") {
+      // WEB: Use async API with Web Workers + WASM
+      const sqliteAsync = await openDatabaseAsync("forgefit", {
+        enableChangeListener: true,
+        useNewConnection: true,
+      });
+      _sqliteDb = sqliteAsync as unknown as ReturnType<typeof openDatabaseSync>;
+    } else {
+      // NATIVE (iOS/Android): Use SYNC API — openDatabaseAsync DOES NOT WORK on native
+      _sqliteDb = openDatabaseSync("forgefit", {
+        enableChangeListener: true,
+      });
+    }
     _drizzleDb = drizzle(_sqliteDb, { schema });
-  }
-  return _drizzleDb;
+    return _drizzleDb;
+  })();
+
+  return _initPromise;
 }
 
 export function getDb() {

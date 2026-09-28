@@ -7,6 +7,7 @@ describe("session-generator", () => {
     id: "td-1",
     name: "Push Day",
     weekday: 1, // Monday
+    order: 1,
     exercises: [
       {
         id: "ex-tpl-1",
@@ -26,11 +27,15 @@ describe("session-generator", () => {
   const mockRoutine: Routine = {
     id: "r-1",
     name: "Hypertrophy Block",
+    goal: "Hipertrofia",
+    startDate: "2023-10-10",
+    createdAt: "2023-10-10",
+    updatedAt: "2023-10-10",
     block: "Block 1",
     mesocycle: "Meso 1",
     trainingDays: [mockTrainingDay],
     daysPerWeek: 4,
-    isActive: true,
+    active: true,
   };
 
   describe("buildSession", () => {
@@ -38,7 +43,12 @@ describe("session-generator", () => {
       const existingSessions: WorkoutSession[] = [];
       const scheduledDate = "2023-10-10";
 
-      const session = buildSession(mockRoutine, mockTrainingDay, existingSessions, scheduledDate);
+      const session = buildSession(
+        mockRoutine,
+        mockTrainingDay,
+        existingSessions,
+        scheduledDate,
+      );
 
       expect(session.id).toBeDefined();
       expect(session.routineId).toBe(mockRoutine.id);
@@ -49,7 +59,7 @@ describe("session-generator", () => {
       const sessionEx = session.exercises[0];
       expect(sessionEx.exerciseId).toBe("ex-1");
       expect(sessionEx.sets).toHaveLength(3);
-      
+
       // Default suggested weight/reps should come from template since no history exists
       expect(sessionEx.sets[0].weight).toBe(60);
       expect(sessionEx.sets[0].reps).toBe(8);
@@ -78,14 +88,27 @@ describe("session-generator", () => {
               order: 1,
               target: mockTrainingDay.exercises[0],
               sets: [
-                { id: "set-1", order: 1, weight: 65, reps: 10, rir: 1, restSeconds: 90, completedAt: "time" }
-              ]
-            }
-          ]
-        }
+                {
+                  id: "set-1",
+                  order: 1,
+                  weight: 65,
+                  reps: 10,
+                  rir: 1,
+                  restSeconds: 90,
+                  completedAt: "time",
+                },
+              ],
+            },
+          ],
+        },
       ];
 
-      const session = buildSession(mockRoutine, mockTrainingDay, existingSessions, "2023-10-10");
+      const session = buildSession(
+        mockRoutine,
+        mockTrainingDay,
+        existingSessions,
+        "2023-10-10",
+      );
       const sessionEx = session.exercises[0];
 
       // Weight and reps should inherit from the completed session, not the template

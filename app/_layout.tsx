@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { migrate } from "drizzle-orm/expo-sqlite/migrator";
 import { initializeDbAsync, getDb } from "../drizzle/client";
 import migrations from "../drizzle/migrations/migrations";
-import { Text, View, Platform } from "react-native";
+import { Text, View, Platform, Alert } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 
 // Error Boundary class component
@@ -88,31 +88,54 @@ export default function RootLayout() {
     }
 
     // Run migrations asynchronously to avoid blocking the main thread on web
+    let mounted = true;
+
     const runMigrations = async () => {
       try {
+        console.log("[RootLayout] Starting database initialization...");
         await initializeDbAsync();
+        console.log("[RootLayout] Database initialized, running migrations...");
         const db = getDb();
         await migrate(db, migrations);
-        setSuccess(true);
-        await SplashScreen.hideAsync();
+        console.log("[RootLayout] Migrations completed successfully");
+        if (mounted) {
+          setSuccess(true);
+          await SplashScreen.hideAsync();
+        }
       } catch (e) {
-        console.error("Migration error:", e);
+        console.error("[RootLayout] Migration error:", e);
         const errorMessage =
           typeof e === "object" && e !== null
             ? JSON.stringify(e, Object.getOwnPropertyNames(e))
             : String(e);
-        setError(e instanceof Error ? e : new Error(errorMessage));
-        await SplashScreen.hideAsync();
+        const normalizedError =
+          e instanceof Error ? e : new Error(errorMessage);
+        if (mounted) {
+          setError(normalizedError);
+          await SplashScreen.hideAsync();
+        }
       }
     };
 
     void runMigrations();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Error en la base de datos: {error.message}</Text>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+        <Text style={{ color: "red", textAlign: "center", marginBottom: 10 }}>
+          Error en la base de datos:
+        </Text>
+        <Text style={{ color: "gray", textAlign: "center" }}>
+          {error.message}
+        </Text>
+        <Text style={{ color: "gray", textAlign: "center", marginTop: 10 }}>
+          Revisa la consola para más detalles. Reinicia la app.
+        </Text>
       </View>
     );
   }
