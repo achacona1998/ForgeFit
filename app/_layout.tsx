@@ -33,7 +33,13 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}>
           <Text style={{ fontSize: 18, color: "red" }}>
             Error en la aplicación: {this.state.error?.message}
           </Text>
@@ -54,11 +60,11 @@ export default function RootLayout() {
   useEffect(() => {
     // Enable immersive mode on Android
     if (Platform.OS === "android") {
-      Promise.all([
-        NavigationBar.setPositionAsync("absolute"),
-        NavigationBar.setVisibilityAsync("hidden"),
-        NavigationBar.setBehaviorAsync("overlay-swipe")
-      ]).catch(err => console.log("Navigation bar error:", err));
+      try {
+        void NavigationBar.setVisibilityAsync("hidden");
+      } catch (err) {
+        console.log("Navigation bar error:", err);
+      }
     }
 
     if (
@@ -66,16 +72,19 @@ export default function RootLayout() {
       navigator.storage &&
       navigator.storage.persist
     ) {
-      navigator.storage.persist().then((persistent) => {
-        if (persistent)
-          console.log(
-            "Storage will not be cleared except by explicit user action",
-          );
-        else
-          console.log(
-            "Storage may be cleared by the UA under storage pressure.",
-          );
-      }).catch(err => console.log("Storage persist error:", err));
+      navigator.storage
+        .persist()
+        .then((persistent) => {
+          if (persistent)
+            console.log(
+              "Storage will not be cleared except by explicit user action",
+            );
+          else
+            console.log(
+              "Storage may be cleared by the UA under storage pressure.",
+            );
+        })
+        .catch((err) => console.log("Storage persist error:", err));
     }
 
     // Run migrations asynchronously to avoid blocking the main thread on web
@@ -88,7 +97,10 @@ export default function RootLayout() {
         await SplashScreen.hideAsync();
       } catch (e) {
         console.error("Migration error:", e);
-        const errorMessage = typeof e === 'object' && e !== null ? JSON.stringify(e, Object.getOwnPropertyNames(e)) : String(e);
+        const errorMessage =
+          typeof e === "object" && e !== null
+            ? JSON.stringify(e, Object.getOwnPropertyNames(e))
+            : String(e);
         setError(e instanceof Error ? e : new Error(errorMessage));
         await SplashScreen.hideAsync();
       }
@@ -123,15 +135,24 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="workout/[id]"
-                options={{ presentation: "card", animation: "slide_from_right" }}
+                options={{
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
               />
               <Stack.Screen
                 name="exercise/[id]"
-                options={{ presentation: "card", animation: "slide_from_right" }}
+                options={{
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
               />
               <Stack.Screen
                 name="session/[id]"
-                options={{ presentation: "card", animation: "slide_from_right" }}
+                options={{
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
               />
               <Stack.Screen
                 name="routine-builder"

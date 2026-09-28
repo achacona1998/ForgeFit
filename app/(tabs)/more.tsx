@@ -135,6 +135,9 @@ export default function MoreScreen() {
           <Text style={styles.localBadgeText}>100% LOCAL</Text>
         </View>
       </View>
+      <View style={{ alignItems: "center", marginVertical: 8 }}>
+        <Text style={{ color: palette.muted, fontSize: 11, opacity: 0.6 }}>Creado por achadev</Text>
+      </View>
 
       <SectionHeader title="Perfil" />
       <AppCard style={styles.profileCard}>

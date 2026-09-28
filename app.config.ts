@@ -8,7 +8,6 @@ const config: ExpoConfig = {
   icon: "./assets/logo.png",
   scheme: "forgefit",
   userInterfaceStyle: "automatic",
-  newArchEnabled: false,
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.achadev.forgefit",
@@ -21,7 +20,6 @@ const config: ExpoConfig = {
       backgroundColor: "#133875",
       foregroundImage: "./assets/images/padded-icon.png",
     },
-    edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: "com.achadev.forgefit",
     permissions: ["POST_NOTIFICATIONS"],
