@@ -6,13 +6,20 @@ import {
   palette,
   SectionHeader,
   IconButton,
+  LineChart,
+  PeriodSelector,
 } from "@/components/app/ui";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+
+type ChartMetric = "weight" | "reps" | "volume" | "rir";
+type Period = "7d" | "30d" | "3m" | "6m" | "1y" | "all";
 
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams();
   const { database } = useFitness();
   const router = useRouter();
+  const [metric, setMetric] = useState<ChartMetric>("weight");
+  const [period, setPeriod] = useState<Period>("30d");
 
   const exercise = useMemo(() => {
     return database.exercises.find((e) => e.id === id);
@@ -40,6 +47,46 @@ export default function ExerciseDetailScreen() {
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
   }, [database.sessions, id]);
+
+  const chartData = useMemo(() => {
+    const cutoff = new Date();
+    if (period === "7d") cutoff.setDate(cutoff.getDate() - 7);
+    else if (period === "30d") cutoff.setDate(cutoff.getDate() - 30);
+    else if (period === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+    else if (period === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+    else if (period === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
+    else cutoff.setFullYear(2000); // all
+
+    const filtered = history.filter((h) => new Date(h.date) >= cutoff);
+    // Reverse to chronological order for the chart
+    const chronological = [...filtered].reverse();
+
+    const labels: string[] = [];
+    const values: number[] = [];
+
+    chronological.forEach((entry) => {
+      labels.push(
+        new Intl.DateTimeFormat("es-ES", {
+          day: "numeric",
+          month: "short",
+        }).format(new Date(entry.date)),
+      );
+      let val = 0;
+      if (metric === "weight") {
+        val = Math.max(...entry.sets.map((s) => s.weight));
+      } else if (metric === "reps") {
+        val = Math.max(...entry.sets.map((s) => s.reps));
+      } else if (metric === "volume") {
+        val = entry.sets.reduce((acc, s) => acc + s.weight * s.reps, 0);
+      } else if (metric === "rir") {
+        const rirs = entry.sets.map((s) => s.rir ?? 0);
+        val = rirs.length ? rirs.reduce((a, b) => a + b, 0) / rirs.length : 0;
+      }
+      values.push(val);
+    });
+
+    return { labels, values };
+  }, [history, period, metric]);
 
   if (!exercise) {
     return (
@@ -134,6 +181,52 @@ export default function ExerciseDetailScreen() {
               {exercise.aliases.join(", ")}
             </Text>
           </>
+        )}
+      </AppCard>
+
+      <SectionHeader title="Rendimiento" />
+      <AppCard style={{ marginBottom: 24 }}>
+        <PeriodSelector period={period} onChange={setPeriod} />
+
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+          {(["weight", "reps", "volume", "rir"] as ChartMetric[]).map((m) => (
+            <Text
+              key={m}
+              onPress={() => setMetric(m)}
+              style={{
+                color: metric === m ? palette.lime : palette.muted,
+                fontWeight: "bold",
+                fontSize: 12,
+                textTransform: "uppercase",
+                paddingVertical: 4,
+                paddingHorizontal: 8,
+                backgroundColor:
+                  metric === m ? palette.limeSoft : "transparent",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}>
+              {m === "weight"
+                ? "Peso Max"
+                : m === "reps"
+                  ? "Reps Max"
+                  : m === "volume"
+                    ? "Volumen"
+                    : "RIR Prom"}
+            </Text>
+          ))}
+        </View>
+
+        {chartData.values.length > 0 ? (
+          <LineChart values={chartData.values} labels={chartData.labels} />
+        ) : (
+          <Text
+            style={{
+              color: palette.muted,
+              textAlign: "center",
+              paddingVertical: 24,
+            }}>
+            No hay datos para el período seleccionado.
+          </Text>
         )}
       </AppCard>
 

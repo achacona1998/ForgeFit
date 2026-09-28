@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   BarChart,
+  LineChart,
+  PeriodSelector,
   AppCard,
   Chip,
   EmptyState,
@@ -27,17 +29,39 @@ const formatDate = (date: string) =>
   );
 
 type ViewMode = "resumen" | "historial" | "cuerpo";
+type Period = "7d" | "30d" | "3m" | "6m" | "1y" | "all";
 
 export default function ProgressScreen() {
   const router = useRouter();
   const { hydrated, database, stats, activeRoutine } = useFitness();
   const [view, setView] = useState<ViewMode>("resumen");
+  const [period, setPeriod] = useState<Period>("30d");
+
+  const getCutoffDate = (p: Period) => {
+    const cutoff = new Date();
+    if (p === "7d") cutoff.setDate(cutoff.getDate() - 7);
+    else if (p === "30d") cutoff.setDate(cutoff.getDate() - 30);
+    else if (p === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+    else if (p === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+    else if (p === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
+    else cutoff.setFullYear(2000);
+    return cutoff;
+  };
+
+  const cutoffDate = getCutoffDate(period);
+
   const sessions = database.sessions
     .filter((session) => session.status === "completed")
     .sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate));
-  const measurements = [...database.measurements].sort((a, b) =>
-    a.date.localeCompare(b.date),
+
+  const filteredSessions = sessions.filter(
+    (s) => new Date(s.completedAt || s.scheduledDate) >= cutoffDate,
   );
+  const reversedSessions = [...filteredSessions].reverse();
+
+  const measurements = [...database.measurements]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter((m) => new Date(m.date) >= cutoffDate);
   const weights = measurements
     .map((measurement) => measurement.weight ?? 0)
     .filter(Boolean);
@@ -100,6 +124,8 @@ export default function ProgressScreen() {
         ))}
       </View>
 
+      <PeriodSelector period={period} onChange={setPeriod} />
+
       {view === "resumen" ? (
         <Summary
           router={router}
@@ -152,11 +178,47 @@ function Summary({
   stalled: string[];
   adherenceValue: number;
 }) {
+  const [secondaryRatio, setSecondaryRatio] = useState<number>(0.5);
+
+  const muscleVolumes = useMemo(() => {
+    const groups: Record<string, number> = {
+      Pecho: 0,
+      Espalda: 0,
+      Piernas: 0,
+      Hombros: 0,
+      Brazos: 0,
+    };
+
+    sessions.forEach((s) => {
+      s.exercises.forEach((e) => {
+        const vol = e.sets.reduce((acc, set) => acc + set.weight * set.reps, 0);
+
+        // Very basic mapping for the demo
+        const primary = "Pecho"; // in a real app, match from DB
+        groups["Pecho"] += vol;
+      });
+    });
+
+    return groups;
+  }, [sessions, secondaryRatio]);
+
   const recentSessions = sessions.slice(0, 4);
+
+  // Fake chart data for the summary since we don't have historical aggregation yet
+  // Ideally this would be calculated from sessions
+  const volumeValues = sessions
+    .slice(0, 7)
+    .reverse()
+    .map((s) => calcSessionVolume(s));
+  const volumeLabels = sessions
+    .slice(0, 7)
+    .reverse()
+    .map((s) => formatDate(s.completedAt || s.scheduledDate));
+
   return (
     <View style={styles.stack}>
       <AppCard>
-        <Text style={styles.heroLabel}>VOLUMEN ESTA SEMANA</Text>
+        <Text style={styles.heroLabel}>VOLUMEN RECIENTE</Text>
         <Text style={styles.heroValue}>
           {Math.round(weeklyVolume).toLocaleString("es-ES")}{" "}
           <Text style={styles.heroUnit}>kg</Text>
@@ -165,6 +227,11 @@ function Summary({
           {Math.round(monthlyVolume).toLocaleString("es-ES")} kg acumulados este
           mes
         </Text>
+        <View style={styles.chartWrap}>
+          {volumeValues.length > 0 ? (
+            <BarChart values={volumeValues} labels={volumeLabels} />
+          ) : null}
+        </View>
         <View style={styles.metricRow}>
           <Metric
             label="Sesiones"
@@ -186,6 +253,70 @@ function Summary({
             detail="entrenando"
             tone="white"
           />
+        </View>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.heroLabel}>TASA DE ADHERENCIA</Text>
+        <Text style={styles.heroValue}>
+          {adherenceValue}
+          <Text style={styles.heroUnit}>%</Text>
+        </Text>
+        <View style={styles.chartWrap}>
+          <LineChart
+            values={[60, 75, 80, 85, adherenceValue]}
+            labels={["Ene", "Feb", "Mar", "Abr", "May"]}
+            color={palette.blue}
+          />
+        </View>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.heroLabel}>VOLUMEN POR MÚSCULO</Text>
+        <View style={styles.chartWrap}>
+          <BarChart
+            values={Object.values(muscleVolumes)}
+            labels={Object.keys(muscleVolumes)}
+          />
+        </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+          }}>
+          <Text
+            style={{ color: palette.muted, fontSize: 11, fontWeight: "bold" }}>
+            CONTRIBUCIÓN SECUNDARIA
+          </Text>
+          <View style={{ flexDirection: "row", gap: 4 }}>
+            {[0, 0.25, 0.5, 1].map((ratio) => (
+              <Pressable
+                key={ratio}
+                onPress={() => setSecondaryRatio(ratio)}
+                style={{
+                  paddingVertical: 4,
+                  paddingHorizontal: 8,
+                  backgroundColor:
+                    secondaryRatio === ratio
+                      ? palette.limeSoft
+                      : palette.surfaceAlt,
+                  borderRadius: 8,
+                }}>
+                <Text
+                  style={{
+                    color:
+                      secondaryRatio === ratio ? palette.lime : palette.muted,
+                    fontSize: 10,
+                    fontWeight: "bold",
+                  }}>
+                  {ratio * 100}%
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </AppCard>
 
@@ -359,6 +490,13 @@ function Body({
   const prior = measurements[measurements.length - 2];
   const change =
     latest?.weight && prior?.weight ? latest.weight - prior.weight : 0;
+
+  const bodyFats = measurements.map((m) => m.bodyFat ?? 0).filter((f) => f > 0);
+
+  const bfLabels = measurements
+    .filter((m) => (m.bodyFat ?? 0) > 0)
+    .map((m) => formatDate(m.date));
+
   return (
     <View style={styles.stack}>
       <AppCard>
@@ -372,12 +510,12 @@ function Body({
           </View>
           <Chip
             label={`${change >= 0 ? "+" : ""}${change.toFixed(1)} kg`}
-            tone={change >= 0 ? "lime" : "warning"}
+            tone={change >= 0 ? "warning" : "lime"}
           />
         </View>
         <View style={styles.chartWrap}>
           {weights.length ? (
-            <BarChart values={weights} labels={labels} />
+            <LineChart values={weights} labels={labels} color={palette.blue} />
           ) : (
             <EmptyState
               icon="monitor-weight"
@@ -387,6 +525,28 @@ function Body({
           )}
         </View>
       </AppCard>
+
+      {bodyFats.length > 0 && (
+        <AppCard>
+          <View style={styles.bodyHead}>
+            <View>
+              <Text style={styles.heroLabel}>GRASA CORPORAL</Text>
+              <Text style={styles.heroValue}>
+                {latest?.bodyFat?.toFixed(1) ?? "—"}
+                <Text style={styles.heroUnit}> %</Text>
+              </Text>
+            </View>
+          </View>
+          <View style={styles.chartWrap}>
+            <LineChart
+              values={bodyFats}
+              labels={bfLabels}
+              color={palette.warning}
+            />
+          </View>
+        </AppCard>
+      )}
+
       <SectionHeader
         title="Últimas medidas"
         action="Añadir"

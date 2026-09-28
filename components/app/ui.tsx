@@ -51,7 +51,7 @@ const lightPalette = {
 export const palette =
   Appearance.getColorScheme() === "light" ? lightPalette : darkPalette;
 
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Polyline, Circle } from "react-native-svg";
 
 export function Logo({
   width = 32,
@@ -376,6 +376,143 @@ export function BarChart({
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+export function LineChart({
+  values,
+  labels,
+  color = palette.lime,
+}: {
+  values: number[];
+  labels: string[];
+  color?: string;
+}) {
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+
+  const points = values
+    .map((val, idx) => {
+      const x = (idx / Math.max(values.length - 1, 1)) * 100;
+      const y = 100 - ((val - min) / range) * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  // Only show max 6 labels to avoid crowding
+  const showLabel = (idx: number) => {
+    if (labels.length <= 6) return true;
+    if (idx === 0 || idx === labels.length - 1) return true;
+    const step = Math.ceil(labels.length / 5);
+    return idx % step === 0;
+  };
+
+  return (
+    <View style={styles.chart}>
+      <View style={{ flex: 1, marginBottom: 8 }}>
+        {values.length > 0 && (
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox="0 -10 100 120"
+            preserveAspectRatio="none">
+            <Polyline
+              points={points}
+              fill="none"
+              stroke={color}
+              strokeWidth="3"
+              vectorEffect="non-scaling-stroke"
+            />
+            {values.map((val, idx) => {
+              const x = (idx / Math.max(values.length - 1, 1)) * 100;
+              const y = 100 - ((val - min) / range) * 100;
+              return (
+                <Circle
+                  key={idx}
+                  cx={x}
+                  cy={y}
+                  r="4"
+                  fill={palette.bg}
+                  stroke={color}
+                  strokeWidth="2"
+                  vectorEffect="non-scaling-stroke"
+                />
+              );
+            })}
+          </Svg>
+        )}
+      </View>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          paddingHorizontal: 4,
+        }}>
+        {labels.map((label, idx) => (
+          <View
+            key={idx}
+            style={{
+              flex: 1,
+              alignItems:
+                idx === 0
+                  ? "flex-start"
+                  : idx === labels.length - 1
+                    ? "flex-end"
+                    : "center",
+            }}>
+            <Text
+              style={[styles.barLabel, { opacity: showLabel(idx) ? 1 : 0 }]}
+              numberOfLines={1}>
+              {label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export function PeriodSelector({
+  period,
+  onChange,
+}: {
+  period: "7d" | "30d" | "3m" | "6m" | "1y" | "all";
+  onChange: (p: "7d" | "30d" | "3m" | "6m" | "1y" | "all") => void;
+}) {
+  const options = [
+    { id: "7d", label: "7D" },
+    { id: "30d", label: "30D" },
+    { id: "3m", label: "3M" },
+    { id: "6m", label: "6M" },
+    { id: "1y", label: "1A" },
+    { id: "all", label: "TODO" },
+  ] as const;
+
+  return (
+    <View style={{ flexDirection: "row", gap: 6, marginVertical: 12 }}>
+      {options.map((opt) => (
+        <Pressable
+          key={opt.id}
+          onPress={() => onChange(opt.id)}
+          style={{
+            paddingVertical: 4,
+            paddingHorizontal: 10,
+            borderRadius: 12,
+            backgroundColor:
+              period === opt.id ? palette.limeSoft : palette.surfaceAlt,
+          }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: "bold",
+              color: period === opt.id ? palette.lime : palette.muted,
+            }}>
+            {opt.label}
+          </Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
