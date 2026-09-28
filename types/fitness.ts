@@ -37,6 +37,18 @@ export interface Exercise {
   isCustom: boolean;
 }
 
+export interface ProgressionConfig {
+  type: ProgressionType;
+  loadIncrement?: number;
+  customIncrement?: number;
+  minRIR?: number;
+  maxRIR?: number;
+  allSetsRequired?: boolean;
+  successRule?: string;
+  failureRule?: string;
+  userNotes?: string;
+}
+
 export interface ExerciseTemplate {
   id: string;
   exerciseId: string;
@@ -58,6 +70,7 @@ export interface ExerciseTemplate {
   priority?: number;
   increment?: number;
   fst7RestSeconds?: number;
+  progressionConfig?: ProgressionConfig;
 }
 export interface TrainingDay {
   id: string;

@@ -86,6 +86,7 @@ export const exerciseTemplates = sqliteTable("exerciseTemplates", {
   restMaxSeconds: integer("restMaxSeconds"),
   tempo: text("tempo"),
   progressionType: text("progressionType"),
+  progressionConfig: text("progressionConfig", { mode: "json" }),
   supersetGroup: text("supersetGroup"), // ID linking exercises in a superset
   priority: text("priority"),
   notes: text("notes"),

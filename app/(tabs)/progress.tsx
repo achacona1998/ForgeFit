@@ -20,7 +20,7 @@ import {
   calcSessionVolume,
   potentialPlateau,
 } from "@/features/analytics";
-import { adherence } from "@/features/progression-engine";
+import { calculateACWR } from "@/features/progression-engine";
 import { useFitness } from "@/context/fitness-context";
 
 const formatDate = (date: string) =>
@@ -36,6 +36,11 @@ export default function ProgressScreen() {
   const { hydrated, database, stats, activeRoutine } = useFitness();
   const [view, setView] = useState<ViewMode>("resumen");
   const [period, setPeriod] = useState<Period>("30d");
+
+  const acwr = useMemo(
+    () => calculateACWR(database.sessions),
+    [database.sessions],
+  );
 
   const getCutoffDate = (p: Period) => {
     const cutoff = new Date();
@@ -135,13 +140,8 @@ export default function ProgressScreen() {
           sessions={sessions}
           records={database.records}
           stalled={stalled}
-          adherenceValue={adherence(
-            Math.max(
-              sessions.length,
-              activeRoutine?.daysPerWeek ?? sessions.length,
-            ),
-            sessions.length,
-          )}
+          adherenceValue={100} // Temporarily hardcoded until we adapt adherence
+          acwr={acwr}
         />
       ) : null}
       {view === "historial" ? (
@@ -168,6 +168,7 @@ function Summary({
   records,
   stalled,
   adherenceValue,
+  acwr,
 }: {
   router: ReturnType<typeof useRouter>;
   weeklyVolume: number;
@@ -177,6 +178,7 @@ function Summary({
   records: ReturnType<typeof useFitness>["database"]["records"];
   stalled: string[];
   adherenceValue: number;
+  acwr: ReturnType<typeof calculateACWR>;
 }) {
   const [secondaryRatio, setSecondaryRatio] = useState<number>(0.5);
 
@@ -268,6 +270,26 @@ function Summary({
             labels={["Ene", "Feb", "Mar", "Abr", "May"]}
             color={palette.blue}
           />
+        </View>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.heroLabel}>ESTADO DE RECUPERACIÓN (ACWR)</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+          <View>
+            <Text style={[styles.heroValue, { color: acwr.ratio > 1.3 ? palette.warning : palette.lime }]}>
+              {acwr.ratio}
+            </Text>
+            <Text style={{ color: palette.muted, fontSize: 12, marginTop: 4 }}>
+              Carga Crónica: {acwr.chronic}
+            </Text>
+          </View>
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
+            <Chip label={acwr.status} tone={acwr.ratio > 1.3 ? "warning" : "lime"} />
+            <Text style={{ color: palette.muted, fontSize: 11, marginTop: 8, textAlign: "right" }}>
+              TSS Últimos 7 días: {acwr.acute}
+            </Text>
+          </View>
         </View>
       </AppCard>
 

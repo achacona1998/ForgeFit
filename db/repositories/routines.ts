@@ -30,7 +30,9 @@ export const routineRepository = {
 
     return result.map((r) => {
       // Find the active/current version (we'll just take the latest one for simplicity or match by ID)
-      const version = r.versions.find((v) => v.id === r.currentVersionId) ?? r.versions[r.versions.length - 1];
+      const version =
+        r.versions.find((v) => v.id === r.currentVersionId) ??
+        r.versions[r.versions.length - 1];
 
       const days = version?.trainingDays ?? [];
 
@@ -53,6 +55,7 @@ export const routineRepository = {
             targetRpe: t.targetRPE ?? undefined,
             restSeconds: t.restMinSeconds ?? 60,
             notes: t.notes ?? undefined,
+            progressionConfig: t.progressionConfig as any,
           })),
         };
       });
@@ -139,6 +142,7 @@ export const routineRepository = {
             targetRPE: t.targetRpe,
             restMinSeconds: t.restSeconds,
             notes: t.notes,
+            progressionConfig: t.progressionConfig,
             enabled: true,
           })),
         );

@@ -1,4 +1,5 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { RecoveryContext } from "@/types/fitness";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
@@ -177,6 +178,15 @@ export default function WorkoutScreen() {
     }
   };
 
+  const updateSessionContext = async (context: Partial<RecoveryContext>) => {
+    if (!session) return;
+    const newRecovery = { ...session.recovery, ...context };
+
+    // We update local state first for immediate feedback
+    // Since we don't have a direct database.updateSession exposed in context,
+    // we use a direct update or dispatch (assuming active session state mutates)
+    session.recovery = newRecovery;
+  };
   const completeWorkout = async () => {
     const records = await finishWorkout(session.id, notes);
     const message = records.length
@@ -463,12 +473,125 @@ export default function WorkoutScreen() {
             style={styles.notesInput}
           />
         </AppCard>
-        <PrimaryButton
-          label="Guardar y finalizar sesión"
-          icon="check-circle"
-          variant="blue"
-          onPress={() => void completeWorkout()}
-        />
+        <View style={{ flex: 1, paddingBottom: 20 }}>
+          <View style={{ gap: 12 }}>
+            <AppCard>
+              <Text style={styles.noteLabel}>CONTEXTO DE RECUPERACIÓN</Text>
+              <Text
+                style={{
+                  color: palette.muted,
+                  fontSize: 13,
+                  marginBottom: 12,
+                  marginTop: 4,
+                }}>
+                Evalúa cómo te sientes al terminar. Esto alimentará tu Ratio de
+                Carga Aguda/Crónica (ACWR).
+              </Text>
+
+              <View style={{ gap: 16 }}>
+                <View>
+                  <Text
+                    style={{
+                      color: palette.text,
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      marginBottom: 8,
+                    }}>
+                    ENERGÍA (1-10)
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                    }}>
+                    {[2, 4, 6, 8, 10].map((val) => (
+                      <Pressable
+                        key={val}
+                        onPress={() =>
+                          void updateSessionContext({ energy: val })
+                        }
+                        style={{
+                          height: 40,
+                          width: 40,
+                          borderRadius: 20,
+                          backgroundColor:
+                            session.recovery?.energy === val
+                              ? palette.lime
+                              : palette.surfaceAlt,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}>
+                        <Text
+                          style={{
+                            color:
+                              session.recovery?.energy === val
+                                ? palette.bg
+                                : palette.text,
+                            fontWeight: "bold",
+                          }}>
+                          {val}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <View>
+                  <Text
+                    style={{
+                      color: palette.text,
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      marginBottom: 8,
+                    }}>
+                    FATIGA (1-10)
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                    }}>
+                    {[2, 4, 6, 8, 10].map((val) => (
+                      <Pressable
+                        key={val}
+                        onPress={() =>
+                          void updateSessionContext({ fatigue: val })
+                        }
+                        style={{
+                          height: 40,
+                          width: 40,
+                          borderRadius: 20,
+                          backgroundColor:
+                            session.recovery?.fatigue === val
+                              ? palette.warning
+                              : palette.surfaceAlt,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}>
+                        <Text
+                          style={{
+                            color:
+                              session.recovery?.fatigue === val
+                                ? palette.bg
+                                : palette.text,
+                            fontWeight: "bold",
+                          }}>
+                          {val}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </AppCard>
+
+            <PrimaryButton
+              label="Guardar y finalizar sesión"
+              icon="check-circle"
+              variant="blue"
+              onPress={() => void completeWorkout()}
+            />
+          </View>
+        </View>
       </ScrollView>
 
       <Modal

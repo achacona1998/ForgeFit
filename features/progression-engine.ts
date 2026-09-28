@@ -44,6 +44,71 @@ export function adherence(scheduled: number, completed: number) {
   return scheduled <= 0 ? 0 : Math.min(100, Math.round((completed / scheduled) * 100));
 }
 
+// Fase 6: Training Stress Score (TSS) and Fatigue Engine
+// Calculates the TSS of a single session based on Volume, RPE/RIR, and total duration.
+export function calculateSessionTSS(session: WorkoutSession): number {
+  if (!session.exercises || session.exercises.length === 0) return 0;
+  
+  let totalTSS = 0;
+  
+  session.exercises.forEach(ex => {
+    ex.sets.forEach(set => {
+      if (set.skipped) return;
+      const weight = set.weight || 1; // avoid zero
+      const reps = set.reps || 1;
+      const rir = set.rir ?? 2;
+      const intensityFactor = 1 + (Math.max(0, 5 - rir) * 0.05); // closer to failure = higher intensity
+      
+      const setVolume = weight * reps;
+      const setTSS = (setVolume / 100) * intensityFactor;
+      totalTSS += setTSS;
+    });
+  });
+
+  return Math.round(totalTSS);
+}
+
+// Acute:Chronic Workload Ratio (ACWR)
+export function calculateACWR(sessions: WorkoutSession[]): { acute: number, chronic: number, ratio: number, status: string } {
+  const completed = sessions.filter(s => s.status === "completed" && s.completedAt);
+  if (completed.length === 0) return { acute: 0, chronic: 0, ratio: 0, status: "Descansado" };
+
+  const now = new Date().getTime();
+  const ONE_DAY = 1000 * 60 * 60 * 24;
+
+  let acuteLoad = 0; // last 7 days
+  let chronicLoad = 0; // last 28 days
+
+  completed.forEach(s => {
+    const sessionDate = new Date(s.completedAt!).getTime();
+    const daysAgo = (now - sessionDate) / ONE_DAY;
+    const tss = calculateSessionTSS(s);
+
+    if (daysAgo <= 7) {
+      acuteLoad += tss;
+    }
+    if (daysAgo <= 28) {
+      chronicLoad += tss;
+    }
+  });
+
+  const chronicAvg = chronicLoad / 4; // average weekly load over 4 weeks
+  const ratio = chronicAvg > 0 ? (acuteLoad / chronicAvg) : 0;
+
+  let status = "Óptimo";
+  if (ratio < 0.8) status = "Baja carga (Pérdida de forma)";
+  else if (ratio >= 0.8 && ratio <= 1.3) status = "Zona de adaptación (Óptimo)";
+  else if (ratio > 1.3 && ratio <= 1.5) status = "Precaución (Alerta de fatiga)";
+  else if (ratio > 1.5) status = "Peligro (Riesgo de lesión)";
+
+  return {
+    acute: Math.round(acuteLoad),
+    chronic: Math.round(chronicAvg),
+    ratio: Number(ratio.toFixed(2)),
+    status
+  };
+}
+
 export function volumeByMuscle(sessions: WorkoutSession[], muscleByExercise: Record<string, string[]>) {
   return sessions.filter((session) => session.status === "completed").reduce<Record<string, number>>((result, session) => {
     session.exercises.forEach((exercise) => {
