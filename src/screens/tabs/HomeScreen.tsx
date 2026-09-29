@@ -1,5 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useRouter } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import {
   ScrollView,
   StyleSheet,
@@ -40,7 +40,7 @@ const todayLabel = new Intl.DateTimeFormat("es-ES", {
 }).format(new Date());
 
 export default function HomeScreen() {
-  const router = useRouter();
+  const navigation = useNavigation();
   const {
     database,
     hydrated,
@@ -60,10 +60,7 @@ export default function HomeScreen() {
   const handleWorkout = async () => {
     const sessionId = await startWorkout(todayTrainingDay?.id);
     if (sessionId)
-      router.push({
-        pathname: "/workout/[id]",
-        params: { id: sessionId },
-      } as never);
+      navigation.navigate("WorkoutDetail", { id: sessionId });
   };
 
   const weeklyTarget = activeRoutine?.daysPerWeek ?? 0;
@@ -86,7 +83,7 @@ export default function HomeScreen() {
         <IconButton
           icon="notifications-none"
           label="Notificaciones"
-          onPress={() => router.push("/(tabs)/more" as never)}
+          onPress={() => navigation.navigate("Settings")}
         />
       </View>
 
@@ -146,7 +143,7 @@ export default function HomeScreen() {
             detail="No hay sesión programada para hoy. Recuperar también es progresar.">
             <PrimaryButton
               label="Ver rutina"
-              onPress={() => router.navigate("/(tabs)/routine" as never)}
+              onPress={() => navigation.navigate("Routine")}
               icon="format-list-bulleted"
               variant="ghost"
             />
@@ -157,7 +154,7 @@ export default function HomeScreen() {
       <SectionHeader
         title="Esta semana"
         action="Ver progreso"
-        onAction={() => router.navigate("/(tabs)/progress" as never)}
+        onAction={() => navigation.navigate("Progress")}
       />
       <AppCard>
         <View style={styles.metricRow}>
@@ -191,7 +188,7 @@ export default function HomeScreen() {
       <SectionHeader
         title="Progreso reciente"
         action="Analizar"
-        onAction={() => router.navigate("/(tabs)/progress" as never)}
+        onAction={() => navigation.navigate("Progress")}
       />
       {stats.recentRecords.length ? (
         <View style={styles.stack}>
@@ -287,7 +284,7 @@ function Onboarding({
       <View style={styles.brandMark}>
         <Logo width={42} height={42} />
       </View>
-      <Text style={styles.onboardEyebrow}>PULSO FIT</Text>
+      <Text style={styles.onboardEyebrow}>FORGEFIT</Text>
       <Text style={styles.onboardTitle}>Empecemos por ti.</Text>
       <Text style={styles.onboardCopy}>
         Estos datos se guardan sólo en tu dispositivo y sirven para personalizar
@@ -348,8 +345,8 @@ function Onboarding({
                   styles.choiceText,
                   goal === item && styles.choiceTextActive,
                 ]}>
-                {item}
-              </Text>
+              {item}
+            </Text>
             </Pressable>
           ))}
         </View>

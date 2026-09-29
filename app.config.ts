@@ -48,7 +48,6 @@ const config: ExpoConfig = {
     },
   },
   plugins: [
-    "expo-router",
     [
       "expo-splash-screen",
       {
