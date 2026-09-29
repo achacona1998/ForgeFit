@@ -1,16 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import "../global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as NavigationBar from "expo-navigation-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FitnessProvider } from "@/context/fitness-context";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { migrate } from "drizzle-orm/expo-sqlite/migrator";
-import { initializeDbAsync, getDb } from "../drizzle/client";
-import migrations from "../drizzle/migrations/migrations";
-import { Text, View, Platform, Alert } from "react-native";
-import * as SplashScreen from "expo-splash-screen";
+import { BootstrapScreen } from "./bootstrap";
 
 // Error Boundary class component
 class ErrorBoundary extends React.Component<
@@ -53,101 +48,9 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+import { Text, View } from "react-native";
+
 export default function RootLayout() {
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    // Enable immersive mode on Android
-    if (Platform.OS === "android") {
-      try {
-        void NavigationBar.setVisibilityAsync("hidden");
-      } catch (err) {
-        console.log("Navigation bar error:", err);
-      }
-    }
-
-    if (
-      Platform.OS === "web" &&
-      navigator.storage &&
-      navigator.storage.persist
-    ) {
-      navigator.storage
-        .persist()
-        .then((persistent) => {
-          if (persistent)
-            console.log(
-              "Storage will not be cleared except by explicit user action",
-            );
-          else
-            console.log(
-              "Storage may be cleared by the UA under storage pressure.",
-            );
-        })
-        .catch((err) => console.log("Storage persist error:", err));
-    }
-
-    // Run migrations asynchronously to avoid blocking the main thread on web
-    let mounted = true;
-
-    const runMigrations = async () => {
-      try {
-        console.log("[RootLayout] Starting database initialization...");
-        await initializeDbAsync();
-        console.log("[RootLayout] Database initialized, running migrations...");
-        const db = getDb();
-        await migrate(db, migrations);
-        console.log("[RootLayout] Migrations completed successfully");
-        if (mounted) {
-          setSuccess(true);
-          await SplashScreen.hideAsync();
-        }
-      } catch (e) {
-        console.error("[RootLayout] Migration error:", e);
-        const errorMessage =
-          typeof e === "object" && e !== null
-            ? JSON.stringify(e, Object.getOwnPropertyNames(e))
-            : String(e);
-        const normalizedError =
-          e instanceof Error ? e : new Error(errorMessage);
-        if (mounted) {
-          setError(normalizedError);
-          await SplashScreen.hideAsync();
-        }
-      }
-    };
-
-    void runMigrations();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  if (error) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
-        <Text style={{ color: "red", textAlign: "center", marginBottom: 10 }}>
-          Error en la base de datos:
-        </Text>
-        <Text style={{ color: "gray", textAlign: "center" }}>
-          {error.message}
-        </Text>
-        <Text style={{ color: "gray", textAlign: "center", marginTop: 10 }}>
-          Revisa la consola para más detalles. Reinicia la app.
-        </Text>
-      </View>
-    );
-  }
-
-  if (!success) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Inicializando base de datos local...</Text>
-      </View>
-    );
-  }
-
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
@@ -155,6 +58,7 @@ export default function RootLayout() {
           <FitnessProvider>
             <StatusBar style="light" hidden={true} />
             <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+              <Stack.Screen name="bootstrap" options={{ presentation: "card" }} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="workout/[id]"

@@ -1,51 +1,68 @@
-import { db } from "../../drizzle/client";
-import {
-  routines,
-  routineVersions,
-  trainingDays,
-  exerciseTemplates,
-} from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
-import type {
-  Routine,
-  TrainingDay,
-  ExerciseTemplate,
-} from "../../types/fitness";
+import { openDb } from "@/db";
+import type { Routine, TrainingDay, ExerciseTemplate } from "@/types/fitness";
+import type { Db } from "@/db";
+
+function mapRoutineRow(r: any): Routine {
+  return {
+    id: r.id,
+    name: r.name,
+    goal: r.goal ?? "",
+    active: Boolean(r.active),
+    daysPerWeek: r.daysPerWeek ?? 0,
+    startDate: r.startDate ?? "",
+    trainingDays: [],
+    createdAt: new Date(r.createdAt).toISOString(),
+    updatedAt: new Date(r.updatedAt).toISOString(),
+  };
+}
 
 export const routineRepository = {
   async getAll(): Promise<Routine[]> {
-    const result = await db.query.routines.findMany({
-      with: {
-        versions: {
-          with: {
-            trainingDays: {
-              with: {
-                exerciseTemplates: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const db = await openDb();
 
-    return result.map((r) => {
-      // Find the active/current version (we'll just take the latest one for simplicity or match by ID)
-      const version =
-        r.versions.find((v) => v.id === r.currentVersionId) ??
-        r.versions[r.versions.length - 1];
+    const routines = await db.getAllAsync(`
+      SELECT * FROM routines ORDER BY updatedAt DESC;
+    `);
 
-      const days = version?.trainingDays ?? [];
+    const result: Routine[] = [];
 
-      const mappedDays: TrainingDay[] = days.map((d) => {
-        return {
-          id: d.id,
-          weekday: d.dayOfWeek ?? 1,
-          name: d.name,
-          order: d.order,
-          exercises: d.exerciseTemplates.map((t) => ({
+    for (const r of routines) {
+      const routine = mapRoutineRow(r);
+
+      // Get current version
+      const version = await db.getFirstAsync(
+        `SELECT * FROM routineVersions WHERE routineId = ? ORDER BY versionNumber DESC LIMIT 1;`,
+        [routine.id]
+      );
+
+      if (!version) {
+        result.push(routine);
+        continue;
+      }
+
+      // Get training days for this version
+      const days = await db.getAllAsync(
+        `SELECT * FROM trainingDays WHERE routineVersionId = ? ORDER BY "order";`,
+        [version.id]
+      );
+
+      routine.trainingDays = [];
+
+      for (const day of days) {
+        const templates = await db.getAllAsync(
+          `SELECT * FROM exerciseTemplates WHERE trainingDayId = ? ORDER BY "order";`,
+          [day.id]
+        );
+
+        const mappedDay: TrainingDay = {
+          id: day.id,
+          weekday: day.dayOfWeek ?? 1,
+          name: day.name,
+          order: day.order,
+          exercises: templates.map((t) => ({
             id: t.id,
             exerciseId: t.exerciseId,
-            name: "Unknown", // Will be resolved by UI
+            name: "Unknown",
             order: t.order,
             sets: t.sets,
             repRangeMin: t.repRangeMin ?? 1,
@@ -55,98 +72,101 @@ export const routineRepository = {
             targetRpe: t.targetRPE ?? undefined,
             restSeconds: t.restMinSeconds ?? 60,
             notes: t.notes ?? undefined,
-            progressionConfig: t.progressionConfig as any,
+            progressionConfig: t.progressionConfig ? JSON.parse(t.progressionConfig) : undefined,
           })),
         };
-      });
 
-      return {
-        id: r.id,
-        name: r.name,
-        goal: r.goal ?? "",
-        active: r.active,
-        daysPerWeek: r.daysPerWeek ?? 0,
-        startDate: r.startDate ?? "",
-        trainingDays: mappedDays,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-      };
-    });
+        routine.trainingDays.push(mappedDay);
+      }
+
+      result.push(routine);
+    }
+
+    return result;
   },
 
   async insert(routine: Routine): Promise<void> {
-    // 1. Insert Routine
-    await db
-      .insert(routines)
-      .values({
-        id: routine.id,
-        name: routine.name,
-        goal: routine.goal,
-        active: routine.active ?? false,
-        daysPerWeek: routine.daysPerWeek,
-        startDate: routine.startDate,
-        currentVersionId: routine.id + "-v1", // Simplified versioning
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: routines.id,
-        set: {
-          name: routine.name,
-          goal: routine.goal,
-          active: routine.active ?? false,
-          daysPerWeek: routine.daysPerWeek,
-          updatedAt: new Date(),
-        },
-      });
-
-    // 2. Insert Version
+    const db = await openDb();
+    const now = Date.now();
     const versionId = routine.id + "-v1";
-    await db
-      .insert(routineVersions)
-      .values({
-        id: versionId,
-        routineId: routine.id,
-        versionNumber: 1,
-        createdAt: new Date(),
-      })
-      .onConflictDoNothing();
 
-    // 3. Delete existing days/templates for this version to replace them cleanly
-    await db
-      .delete(trainingDays)
-      .where(eq(trainingDays.routineVersionId, versionId));
+    await db.execAsync("BEGIN;");
+    try {
+      // 1. Insert/Update Routine
+      await db.runAsync(
+        `INSERT INTO routines (id, name, goal, active, daysPerWeek, startDate, currentVersionId, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           goal = excluded.goal,
+           active = excluded.active,
+           daysPerWeek = excluded.daysPerWeek,
+           updatedAt = excluded.updatedAt;`,
+        [
+          routine.id,
+          routine.name,
+          routine.goal ?? null,
+          routine.active ? 1 : 0,
+          routine.daysPerWeek ?? null,
+          routine.startDate ?? null,
+          versionId,
+          now,
+          now,
+        ]
+      );
 
-    // 4. Insert Days & Templates
-    for (const day of routine.trainingDays) {
-      await db.insert(trainingDays).values({
-        id: day.id,
-        routineVersionId: versionId,
-        name: day.name,
-        dayOfWeek: day.weekday,
-        order: day.order ?? 1,
-      });
+      // 2. Insert Version
+      await db.runAsync(
+        `INSERT INTO routineVersions (id, routineId, versionNumber, createdAt)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO NOTHING;`,
+        [versionId, routine.id, 1, now]
+      );
 
-      if (day.exercises.length > 0) {
-        await db.insert(exerciseTemplates).values(
-          day.exercises.map((t, idx) => ({
-            id: t.id,
-            trainingDayId: day.id,
-            exerciseId: t.exerciseId,
-            order: t.order ?? idx + 1,
-            sets: t.sets,
-            repRangeMin: t.repRangeMin,
-            repRangeMax: t.repRangeMax,
-            targetWeight: t.targetWeight,
-            targetRIRMin: t.targetRir,
-            targetRPE: t.targetRpe,
-            restMinSeconds: t.restSeconds,
-            notes: t.notes,
-            progressionConfig: t.progressionConfig,
-            enabled: true,
-          })),
+      // 3. Delete existing days/templates for this version
+      await db.runAsync(
+        `DELETE FROM trainingDays WHERE routineVersionId = ?;`,
+        [versionId]
+      );
+
+      // 4. Insert Days & Templates
+      for (const day of routine.trainingDays) {
+        await db.runAsync(
+          `INSERT INTO trainingDays (id, routineVersionId, name, dayOfWeek, "order")
+           VALUES (?, ?, ?, ?, ?);`,
+          [day.id, versionId, day.name, day.weekday ?? null, day.order ?? 1]
         );
+
+        if (day.exercises.length > 0) {
+          for (const [idx, t] of day.exercises.entries()) {
+            await db.runAsync(
+              `INSERT INTO exerciseTemplates (id, trainingDayId, exerciseId, "order", sets, repRangeMin, repRangeMax, targetWeight, targetRIRMin, targetRPE, restMinSeconds, notes, progressionConfig, enabled)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+              [
+                t.id,
+                day.id,
+                t.exerciseId,
+                t.order ?? idx + 1,
+                t.sets,
+                t.repRangeMin ?? 1,
+                t.repRangeMax ?? 1,
+                t.targetWeight ?? null,
+                t.targetRir ?? null,
+                t.targetRpe ?? null,
+                t.restSeconds ?? 60,
+                t.notes ?? null,
+                t.progressionConfig ? JSON.stringify(t.progressionConfig) : null,
+                1,
+              ]
+            );
+          }
+        }
       }
+
+      await db.execAsync("COMMIT;");
+    } catch (e) {
+      await db.execAsync("ROLLBACK;");
+      throw e;
     }
   },
 };

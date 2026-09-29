@@ -19,12 +19,10 @@ import {
   buildSession,
   findTrainingDayForDate,
 } from "@/features/session-generator";
-import { db } from "@/drizzle/client";
-import { settings } from "@/drizzle/schema";
-import { eq } from "drizzle-orm";
-import { exerciseRepository } from "@/db/repositories/exercises";
-import { routineRepository } from "@/db/repositories/routines";
-import { sessionRepository } from "@/db/repositories/sessions";
+import { openDb } from "../db";
+import { exerciseRepository } from "../db/repositories/exercises";
+import { routineRepository } from "../db/repositories/routines";
+import { sessionRepository } from "../db/repositories/sessions";
 
 import type {
   AppSettings,
@@ -130,6 +128,41 @@ const createEmptyDatabase = (): FitnessDatabase => {
   };
 };
 
+async function loadSettingsFromDb(): Promise<{ settings: AppSettings; profile: FitnessDatabase["profile"] }> {
+  const db = await openDb();
+  const record = await db.getFirstAsync(
+    `SELECT value FROM settings WHERE key = 'app_state' LIMIT 1;`
+  );
+  
+  const defaultDb = createEmptyDatabase();
+  
+  if (!record) {
+    return { settings: defaultDb.settings, profile: defaultDb.profile };
+  }
+  
+  try {
+    const parsed = JSON.parse(record.value as string) as Partial<FitnessDatabase>;
+    return {
+      settings: parsed.settings ?? defaultDb.settings,
+      profile: parsed.profile ?? defaultDb.profile,
+    };
+  } catch {
+    return { settings: defaultDb.settings, profile: defaultDb.profile };
+  }
+}
+
+async function saveSettingsToDb(settings: AppSettings, profile: FitnessDatabase["profile"]) {
+  const db = await openDb();
+  const now = Date.now();
+  
+  await db.runAsync(
+    `INSERT INTO settings (key, value, updatedAt)
+     VALUES ('app_state', ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt;`,
+    [JSON.stringify({ settings, profile }), now]
+  );
+}
+
 export function FitnessProvider({ children }: PropsWithChildren) {
   const [database, setDatabase] =
     useState<FitnessDatabase>(createEmptyDatabase);
@@ -141,23 +174,7 @@ export function FitnessProvider({ children }: PropsWithChildren) {
 
     const loadFromSQLite = async () => {
       try {
-        // Ensure DB is ready (initializeDbAsync should have run in _layout.tsx)
-        const settingsRecord = await db
-          .select()
-          .from(settings)
-          .where(eq(settings.key, "app_state"))
-          .limit(1);
-
-        let currentSettings = createEmptyDatabase().settings;
-        let currentProfile = createEmptyDatabase().profile;
-
-        if (settingsRecord.length > 0) {
-          const parsed = JSON.parse(
-            settingsRecord[0].value as string,
-          ) as Partial<FitnessDatabase>;
-          if (parsed.settings) currentSettings = parsed.settings;
-          if (parsed.profile) currentProfile = parsed.profile;
-        }
+        const { settings: currentSettings, profile: currentProfile } = await loadSettingsFromDb();
 
         // Leer de las tablas reales relacionales
         const dbExercises = await exerciseRepository.getAll();
@@ -201,26 +218,7 @@ export function FitnessProvider({ children }: PropsWithChildren) {
 
     // Guardar solo el perfil y config (las rutinas y sesiones van por repositorios)
     try {
-      await db
-        .insert(settings)
-        .values({
-          key: "app_state",
-          value: JSON.stringify({
-            profile: updated.profile,
-            settings: updated.settings,
-          }),
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: settings.key,
-          set: {
-            value: JSON.stringify({
-              profile: updated.profile,
-              settings: updated.settings,
-            }),
-            updatedAt: new Date(),
-          },
-        });
+      await saveSettingsToDb(updated.settings, updated.profile);
     } catch (e) {
       console.error("Error guardando estado en SQLite", e);
     }
